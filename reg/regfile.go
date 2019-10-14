@@ -32,9 +32,7 @@ type RegisterFile struct {
 	dataIn     device.WiresIn
 	rs1DataOut device.Wires
 	rs2DataOut device.Wires
-	loadRdy    chan struct{}
-	storeRdy   chan struct{}
-	enabled    bool
+
 	sync.RWMutex
 }
 
@@ -47,52 +45,42 @@ func newRegister() *RegisterFile {
 		file:       make([]uint32, 32, 32),
 		rs1DataOut: device.MakeWires(),
 		rs2DataOut: device.MakeWires(),
-		loadRdy:    make(chan struct{}),
-		storeRdy:   make(chan struct{}),
 	}
 }
 
 func (r *RegisterFile) Run() error {
-	r.setEnabled(true)
-
-	// process RS1, RS2
+	// rs1
 	go func() {
-		defer func() {
-			close(r.rs1DataOut)
-			close(r.rs2DataOut)
-		}()
-
+		defer close(r.rs1DataOut)
 		for {
-			if !r.IsEnabled() {
-				return
-			}
-
 			select {
-			// wait for store ready signal before writing data value
-			case <-r.storeRdy:
-				select {
-				// write data
-				case rdAddr := <-r.rdAddrIn:
-					// wait for data line
-					select {
-					case data := <-r.dataIn:
-						r.store(rdAddr, data)
-					}
-				}
+			case addr := <-r.rs1AddrIn:
+				r.rs1DataOut <- r.read(addr)
+			}
+		}
+	}()
 
-			// wait for load signal before reading rs1 or rs2
-			case <-r.loadRdy:
-				// read file[rs1]
-				go func() {
-					addr := <-r.rs1AddrIn
-					r.rs1DataOut <- r.load(addr)
-				}()
+	// rs2
+	go func() {
+		defer close(r.rs2DataOut)
+		for {
+			select {
+			case addr := <-r.rs2AddrIn:
+				r.rs2DataOut <- r.read(addr)
+			}
+		}
+	}()
 
-				// read file[rs2]
-				go func() {
-					addr := <-r.rs2AddrIn
-					r.rs2DataOut <- r.load(addr)
-				}()
+	// data, rd:
+	// for this to work in sequential
+	// circuit, data must be specified
+	// prior to rd
+	go func() {
+		for {
+			select {
+			case data := <-r.dataIn:
+				addr := <-r.rdAddrIn
+				r.write(addr, data)
 			}
 		}
 	}()
@@ -135,38 +123,13 @@ func (r *RegisterFile) RS2DataOut() device.WiresOut {
 	return r.rs2DataOut
 }
 
-func (r *RegisterFile) Load() {
-	go func() {
-		r.loadRdy <- struct{}{}
-	}()
-}
-
-func (r *RegisterFile) Store() {
-	go func() {
-		r.storeRdy <- struct{}{}
-	}()
-}
-
-// IsEnabled reflects readiness of device.
-func (r *RegisterFile) IsEnabled() bool {
-	r.RLock()
-	defer r.RUnlock()
-	return r.enabled
-}
-
-func (r *RegisterFile) setEnabled(f bool) {
-	r.Lock()
-	defer r.Unlock()
-	r.enabled = f
-}
-
-func (r *RegisterFile) load(addr uint32) uint32 {
+func (r *RegisterFile) read(addr uint32) uint32 {
 	r.RLock()
 	defer r.RUnlock()
 	return r.file[addr]
 }
 
-func (r *RegisterFile) store(addr uint32, data uint32) {
+func (r *RegisterFile) write(addr uint32, data uint32) {
 	r.Lock()
 	defer r.Unlock()
 	r.file[addr] = data
