@@ -8,6 +8,7 @@ func MakeWires() Wires {
 
 type WiresIn = <-chan uint32
 type WiresOut = WiresIn
+type Datapath []Wires
 
 type Port map[string]<-chan uint32
 

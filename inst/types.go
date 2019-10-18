@@ -37,9 +37,29 @@ type Fields struct {
 // R-type operation
 type rop struct {
 	Name string
-	Funct7,
-	Funct3,
+	// Funct encodes both funct7 + funct3 in its lower bits
+	//    [XXXXXXXX XXXXXXXX XXXXXX77 77777333]
+	Funct  uint32
 	Opcode uint32
+}
+
+// DecodeFuncts extracts both funct7 and funct3 from funct
+// which is encoded as:
+//    [XXXXXXXX XXXXXXXX XXXXXX77 77777333]
+func (r rop) DecodeFuncts() (funct7, funct3 uint32) {
+	funct3 = r.Funct & 0x7
+	funct7 = (r.Funct >> 3) & 0x7F
+	return
+}
+
+// EncRFuncts encodes R-type functions Funct7+Funct3 into the
+// lower bits of a single value:
+//    [XXXXXXXX XXXXXXXX XXXXXX77 77777333]
+func EncRFuncts(f7, f3 uint32) uint32 {
+	var result uint32
+	result = (result | f7) << 3
+	result = result | f3
+	return result
 }
 
 // R-type operations
@@ -48,14 +68,14 @@ var (
 	Funct7Hi uint32 = 0b0100000
 
 	// Meta for R-Types
-	Add  = rop{Name: "add", Funct7: Funct7Lo, Funct3: 0b000, Opcode: Opcodes.R}
-	Sub  = rop{Name: "sub", Funct7: Funct7Hi, Funct3: 0b000, Opcode: Opcodes.R}
-	Sll  = rop{Name: "sll", Funct7: Funct7Lo, Funct3: 0b001, Opcode: Opcodes.R}
-	Slt  = rop{Name: "slt", Funct7: Funct7Lo, Funct3: 0b010, Opcode: Opcodes.R}
-	Sltu = rop{Name: "sltu", Funct7: Funct7Lo, Funct3: 0b011, Opcode: Opcodes.R}
-	Xor  = rop{Name: "xor", Funct7: Funct7Lo, Funct3: 0b100, Opcode: Opcodes.R}
-	Srl  = rop{Name: "slr", Funct7: Funct7Lo, Funct3: 0b101, Opcode: Opcodes.R}
-	Sra  = rop{Name: "sra", Funct7: Funct7Hi, Funct3: 0b101, Opcode: Opcodes.R}
-	Or   = rop{Name: "or", Funct7: Funct7Lo, Funct3: 0b110, Opcode: Opcodes.R}
-	And  = rop{Name: "and", Funct7: Funct7Lo, Funct3: 0b111, Opcode: Opcodes.R}
+	Add  = rop{Name: "add", Funct: uint32(0) | 0b0000000000, Opcode: Opcodes.R}
+	Sub  = rop{Name: "sub", Funct: uint32(0) | 0b0100000000, Opcode: Opcodes.R}
+	Sll  = rop{Name: "sll", Funct: uint32(0) | 0b0000000001, Opcode: Opcodes.R}
+	Slt  = rop{Name: "slt", Funct: uint32(0) | 0b0000000010, Opcode: Opcodes.R}
+	Sltu = rop{Name: "sltu", Funct: uint32(0) | 0b0000000011, Opcode: Opcodes.R}
+	Xor  = rop{Name: "xor", Funct: uint32(0) | 0b0000000100, Opcode: Opcodes.R}
+	Srl  = rop{Name: "slr", Funct: uint32(0) | 0b0000000101, Opcode: Opcodes.R}
+	Sra  = rop{Name: "sra", Funct: uint32(0) | 0b0100000101, Opcode: Opcodes.R}
+	Or   = rop{Name: "or", Funct: uint32(0) | 0b0000000110, Opcode: Opcodes.R}
+	And  = rop{Name: "and", Funct: uint32(0) | 0b0000000111, Opcode: Opcodes.R}
 )
