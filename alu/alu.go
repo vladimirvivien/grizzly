@@ -52,11 +52,54 @@ func (a *ALU) Run() error {
 			funct := <-a.functIn
 
 			switch funct {
+			// add
 			case inst.Add.Funct:
 				a.dataOut <- data1 + data2
+
 			case inst.Sub.Funct:
 				a.dataOut <- data1 - data2
+
+			// sll - shift logical left
+			case inst.Sll.Funct:
+				a.dataOut <- data1 << data2
+
+			// slt - set if less then (signed)
+			case inst.Slt.Funct:
+				var result uint32
+				if int32(data1) < int32(data2) {
+					result = 1
+				}
+				a.dataOut <- result
+
+			// sltu - set if less then (unsigned)
+			case inst.Sltu.Funct:
+				var result uint32
+				if data1 < data2 {
+					result = 1
+				}
+				a.dataOut <- result
+
+			// xor
+			case inst.Or.Funct:
+				a.dataOut <- data1 ^ data2
+
+			// srl - shift right logical
+			case inst.Srl.Funct:
+				a.dataOut <- data1 >> data2
+
+			// sra - shift right arithmetic
+			case inst.Sra.Funct:
+				a.dataOut <- uint32(int32(data1) >> data2)
+
+			// or
+			case inst.Or.Funct:
+				a.dataOut <- data1 | data2
+
+			// and
+			case inst.And.Funct:
+				a.dataOut <- data1 & data2
 			}
+
 		}
 	}()
 
