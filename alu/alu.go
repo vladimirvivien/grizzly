@@ -2,7 +2,7 @@ package alu
 
 import (
 	"github.com/vladimirvivien/grizzly/device"
-	"github.com/vladimirvivien/grizzly/inst"
+	"github.com/vladimirvivien/grizzly/isa"
 )
 
 var (
@@ -20,14 +20,10 @@ var (
 )
 
 type ALU struct {
-	data1In device.WiresIn
-	data2In device.WiresIn
-	dataOut device.Wires
-
-	// functIn is a 32-bit value that
-	// conctenates the bits from Funct7+Funct3
-	// [XXXXXXXX XXXXXXXX XXXXXX77 77777333]
-	functIn device.WiresIn
+	data1In  device.WiresIn // operand 1
+	data2In  device.WiresIn // operand 2
+	dataOut  device.Wires   // output
+	functsIn device.WiresIn // 10-bit inst[31:25]inst[14:12]
 }
 
 func New() device.Type {
@@ -49,22 +45,23 @@ func (a *ALU) Run() error {
 		for {
 			data1 := <-a.data1In
 			data2 := <-a.data2In
-			funct := <-a.functIn
+			functs := <-a.functsIn
 
-			switch funct {
+			switch functs {
 			// add
-			case inst.Add.Funct:
+			case isa.Add.Functs:
 				a.dataOut <- data1 + data2
 
-			case inst.Sub.Funct:
+			// sub
+			case isa.Sub.Functs:
 				a.dataOut <- data1 - data2
 
 			// sll - shift logical left
-			case inst.Sll.Funct:
+			case isa.Sll.Functs:
 				a.dataOut <- data1 << data2
 
 			// slt - set if less then (signed)
-			case inst.Slt.Funct:
+			case isa.Slt.Functs:
 				var result uint32
 				if int32(data1) < int32(data2) {
 					result = 1
@@ -72,7 +69,7 @@ func (a *ALU) Run() error {
 				a.dataOut <- result
 
 			// sltu - set if less then (unsigned)
-			case inst.Sltu.Funct:
+			case isa.Sltu.Functs:
 				var result uint32
 				if data1 < data2 {
 					result = 1
@@ -80,24 +77,39 @@ func (a *ALU) Run() error {
 				a.dataOut <- result
 
 			// xor
-			case inst.Or.Funct:
+			case isa.Or.Functs:
 				a.dataOut <- data1 ^ data2
 
 			// srl - shift right logical
-			case inst.Srl.Funct:
+			case isa.Srl.Functs:
 				a.dataOut <- data1 >> data2
 
 			// sra - shift right arithmetic
-			case inst.Sra.Funct:
+			case isa.Sra.Functs:
 				a.dataOut <- uint32(int32(data1) >> data2)
 
 			// or
-			case inst.Or.Funct:
+			case isa.Or.Functs:
 				a.dataOut <- data1 | data2
 
 			// and
-			case inst.And.Funct:
+			case isa.And.Functs:
 				a.dataOut <- data1 & data2
+
+			// mul
+			case isa.Mul.Functs:
+				a.dataOut <- data1 * data2
+			case isa.Mulh.Functs:
+				a.dataOut <- mulh(data1, data2)
+			case isa.Mulhsu.Functs:
+				a.dataOut <- mulhsu(data1, data2)
+			case isa.Mulhu.Functs:
+				a.dataOut <- mulhu(data1, data2)
+
+			case isa.Div.Functs:
+			case isa.Divu.Functs:
+			case isa.Rem.Functs:
+			case isa.Remu.Functs:
 			}
 
 		}
@@ -126,10 +138,28 @@ func (a *ALU) DataOut() device.WiresOut {
 	return a.dataOut
 }
 
-// FunctIn receives a 32-bit value that is a
-// concatenation of the bits from Funct7+Funct3
+// FunctsIn this wire receives a 32-bit value in which
+// the lower 10 bits encondes ISA fields funct7 and funct3:
 //
 //    [XXXXXXXX XXXXXXXX XXXXXX77 77777333]
-func (a *ALU) FunctIn(funct device.WiresIn) {
-	a.functIn = funct
+func (a *ALU) FunctsIn(functs device.WiresIn) {
+	a.functsIn = functs
+}
+
+// mulh** returns high 32-bit portion of multiplication
+// The operations assume they are running in 64-bit (or higher) host machine
+// so there are plenty of bit-space for representation
+func mulh(data1, data2 uint32) uint32 {
+	result := (int64(data1) * int64(data2)) >> 32
+	return uint32(result)
+}
+
+func mulhsu(data1, data2 uint32) uint32 {
+	result := (int64(int32(data1)) * int64(data2)) >> 32
+	return uint32(result)
+}
+
+func mulhu(data1, data2 uint32) uint32 {
+	result := (int64(data1) * int64(data2)) >> 32
+	return uint32(result)
 }
