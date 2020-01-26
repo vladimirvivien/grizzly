@@ -146,20 +146,22 @@ func (a *ALU) FunctsIn(functs device.WiresIn) {
 	a.functsIn = functs
 }
 
-// mulh** returns high 32-bit portion of multiplication
-// The operations assume they are running in 64-bit (or higher) host machine
-// so there are plenty of bit-space for representation
+// mulh** returns high 32-bit portion of multiplication product.
+// For 32-bit operands, operation assumes 64-bit host machine.
+
+// mulh interpret operands as signed
 func mulh(data1, data2 uint32) uint32 {
 	result := (int64(data1) * int64(data2)) >> 32
 	return uint32(result)
 }
 
+// mulhsu interpret operands as signed/unsigned
 func mulhsu(data1, data2 uint32) uint32 {
-	result := (int64(int32(data1)) * int64(data2)) >> 32
+	result := (uint64(int32(data1)) * uint64(data2)) >> 32
 	return uint32(result)
 }
 
 func mulhu(data1, data2 uint32) uint32 {
-	result := (int64(data1) * int64(data2)) >> 32
+	result := (uint64(data1) * uint64(data2)) >> 32
 	return uint32(result)
 }

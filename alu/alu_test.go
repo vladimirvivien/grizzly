@@ -13,10 +13,11 @@ func TestALUROps(t *testing.T) {
 	opwires := make(chan uint32)
 
 	tests := []struct {
-		name     string
-		operands func() (uint32, uint32)
-		aluOp    uint32
-		expected func() uint32
+		name       string
+		operands   func() (uint32, uint32)
+		aluOp      uint32
+		expected   func() uint32
+		shouldFail bool
 	}{
 		{
 			name:     "add-pos-pos",
@@ -73,6 +74,113 @@ func TestALUROps(t *testing.T) {
 			operands: func() (uint32, uint32) { return 0x1C, 0x10 },
 			expected: func() uint32 { return 0x0 },
 			aluOp:    isa.Sltu.Functs,
+		},
+
+		// ***** Multiplication Tests *******
+		// mul
+		{
+			name:     "mul-pos-pos",
+			operands: func() (uint32, uint32) { return 0x2, 0x5 },
+			expected: func() uint32 { return 0xA },
+			aluOp:    isa.Mul.Functs,
+		},
+		{
+			name:     "mul-pos-neg",
+			operands: func() (uint32, uint32) { return 0x2, 0b11111111_11111111_11111111_11111011 },
+			expected: func() uint32 { return 0b11111111_11111111_11111111_11110110 },
+			aluOp:    isa.Mul.Functs,
+		},
+		{
+			name: "mul-neg-neg",
+			operands: func() (uint32, uint32) {
+				return 0b11111111_11111111_11111111_11111110, 0b11111111_11111111_11111111_11111011
+			},
+			expected: func() uint32 { return 0xA },
+			aluOp:    isa.Mul.Functs,
+		},
+
+		// Mulh
+		{
+			name:     "mulh-pos-pos small",
+			operands: func() (uint32, uint32) { return 0x2, 0x5 },
+			expected: func() uint32 { return 0 },
+			aluOp:    isa.Mulh.Functs,
+		},
+		{
+			name:     "mulh-pos-pos large",
+			operands: func() (uint32, uint32) { return 1100200, 1200300 },
+			expected: func() uint32 { return 307 },
+			aluOp:    isa.Mulh.Functs,
+		},
+		{
+			name:     "mulh-pos-neg large",
+			operands: func() (uint32, uint32) { return 1100200, 0b11111111_11101101_10101111_01010100 },
+			expected: func() uint32 { return 0b100001100100001110100 },
+			aluOp:    isa.Mulh.Functs,
+		},
+		{
+			name: "mulh-neg-neg large",
+			operands: func() (uint32, uint32) {
+				return 0b11111111_11101111_00110110_01011000, 0b11111111_11101101_10101111_01010100
+			},
+			expected: func() uint32 { return 0b11111111110111001110011011011111 },
+			aluOp:    isa.Mulh.Functs,
+		},
+
+		// Mulhsu
+		{
+			name:     "mulhsu-pos-pos small",
+			operands: func() (uint32, uint32) { return 0x2, 0x5 },
+			expected: func() uint32 { return 0 },
+			aluOp:    isa.Mulhsu.Functs,
+		},
+		{
+			name:     "mulhsu-pos-pos large",
+			operands: func() (uint32, uint32) { return 1100200, 1200300 },
+			expected: func() uint32 { return 307 },
+			aluOp:    isa.Mulhsu.Functs,
+		},
+		{
+			name:     "mulhsu-pos-neg large",
+			operands: func() (uint32, uint32) { return 1100200, 0b11111111_11101101_10101111_01010100 },
+			expected: func() uint32 { return 0b100001100100001110100 },
+			aluOp:    isa.Mulhsu.Functs,
+		},
+		{
+			name: "mulhsu-neg-neg large",
+			operands: func() (uint32, uint32) {
+				return 0b11111111_11101111_00110110_01011000, 0b11111111_11101101_10101111_01010100
+			},
+			expected: func() uint32 { return 0b11111111111011110011011110001011 },
+			aluOp:    isa.Mulhsu.Functs,
+		},
+
+		// Mulhu
+		{
+			name:     "mulhu-pos-pos small",
+			operands: func() (uint32, uint32) { return 0x2, 0x5 },
+			expected: func() uint32 { return 0 },
+			aluOp:    isa.Mulhu.Functs,
+		},
+		{
+			name:     "mulhu-pos-pos large",
+			operands: func() (uint32, uint32) { return 1100200, 1200300 },
+			expected: func() uint32 { return 307 },
+			aluOp:    isa.Mulhu.Functs,
+		},
+		{
+			name:     "mulhu-pos-neg large",
+			operands: func() (uint32, uint32) { return 1100200, 0b11111111_11101101_10101111_01010100 },
+			expected: func() uint32 { return 0b100001100100001110100 },
+			aluOp:    isa.Mulhu.Functs,
+		},
+		{
+			name: "mulhu-neg-neg large",
+			operands: func() (uint32, uint32) {
+				return 0b11111111_11101111_00110110_01011000, 0b11111111_11101101_10101111_01010100
+			},
+			expected: func() uint32 { return 0b11111111110111001110011011011111 },
+			aluOp:    isa.Mulhu.Functs,
 		},
 	}
 
