@@ -6,24 +6,26 @@ import (
 )
 
 var (
-	Wires = struct {
-		Data1In,
-		Data2In,
-		FunctIn,
-		DataOut string
+	In = struct {
+		Operand1 device.PinLabel // operand1
+		Operand2 device.PinLabel // operand2
+		Functs   device.PinLabel // function bits
 	}{
-		Data1In: "alu.data1.in",
-		Data2In: "alu.data2.in",
-		FunctIn: "alu.funct.in",
-		DataOut: "alu.data.out",
+		Operand1: "alu.data1.in",
+		Operand2: "alu.data2.in",
+		Functs:   "alu.funct.in",
+	}
+
+	Out = struct {
+		Result device.PinLabel
+	}{
+		Result: "alu.result.out",
 	}
 )
 
 type ALU struct {
-	data1In  device.WiresIn // operand 1
-	data2In  device.WiresIn // operand 2
-	dataOut  device.Wires   // output
-	functsIn device.WiresIn // 10-bit inst[31:25]inst[14:12]
+	resultOut device.Wires // output
+	pins      device.Pins
 }
 
 func New() device.Type {
@@ -31,9 +33,27 @@ func New() device.Type {
 }
 
 func newAlu() *ALU {
-	return &ALU{
-		dataOut: device.MakeWires(),
+	a := &ALU{
+		resultOut: device.MakeWires(),
 	}
+
+	a.pins = device.Pins{
+		Out.Result: a.resultOut,
+	}
+
+	return a
+}
+
+func (a *ALU) GetPins() device.Pins {
+	return a.pins
+}
+
+func (a *ALU) GetPin(label device.PinLabel) device.Pin {
+	return a.pins[label]
+}
+
+func (a *ALU) SetPin(label device.PinLabel, pin device.Pin) {
+	a.pins[label] = pin
 }
 
 // Run starts the ALU.
@@ -41,24 +61,25 @@ func newAlu() *ALU {
 // be available or risk blocking.
 func (a *ALU) Run() error {
 	go func() {
-		defer close(a.dataOut)
+		defer close(a.resultOut)
 		for {
-			data1 := <-a.data1In
-			data2 := <-a.data2In
-			functs := <-a.functsIn
+			data1 := <-a.GetPin(In.Operand1)
+			data2 := <-a.GetPin(In.Operand2)
+			// functs concatanate all function bits
+			functs := <-a.GetPin(In.Functs)
 
 			switch functs {
 			// add
 			case isa.Add.Functs:
-				a.dataOut <- data1 + data2
+				a.resultOut <- data1 + data2
 
 			// sub
 			case isa.Sub.Functs:
-				a.dataOut <- data1 - data2
+				a.resultOut <- data1 - data2
 
 			// sll - shift logical left
 			case isa.Sll.Functs:
-				a.dataOut <- data1 << data2
+				a.resultOut <- data1 << data2
 
 			// slt - set if less then (signed)
 			case isa.Slt.Functs:
@@ -66,7 +87,7 @@ func (a *ALU) Run() error {
 				if int32(data1) < int32(data2) {
 					result = 1
 				}
-				a.dataOut <- result
+				a.resultOut <- result
 
 			// sltu - set if less then (unsigned)
 			case isa.Sltu.Functs:
@@ -74,37 +95,37 @@ func (a *ALU) Run() error {
 				if data1 < data2 {
 					result = 1
 				}
-				a.dataOut <- result
+				a.resultOut <- result
 
 			// xor
 			case isa.Or.Functs:
-				a.dataOut <- data1 ^ data2
+				a.resultOut <- data1 ^ data2
 
 			// srl - shift right logical
 			case isa.Srl.Functs:
-				a.dataOut <- data1 >> data2
+				a.resultOut <- data1 >> data2
 
 			// sra - shift right arithmetic
 			case isa.Sra.Functs:
-				a.dataOut <- uint32(int32(data1) >> data2)
+				a.resultOut <- uint32(int32(data1) >> data2)
 
 			// or
 			case isa.Or.Functs:
-				a.dataOut <- data1 | data2
+				a.resultOut <- data1 | data2
 
 			// and
 			case isa.And.Functs:
-				a.dataOut <- data1 & data2
+				a.resultOut <- data1 & data2
 
 			// mul
 			case isa.Mul.Functs:
-				a.dataOut <- data1 * data2
+				a.resultOut <- data1 * data2
 			case isa.Mulh.Functs:
-				a.dataOut <- mulh(data1, data2)
+				a.resultOut <- mulh(data1, data2)
 			case isa.Mulhsu.Functs:
-				a.dataOut <- mulhsu(data1, data2)
+				a.resultOut <- mulhsu(data1, data2)
 			case isa.Mulhu.Functs:
-				a.dataOut <- mulhu(data1, data2)
+				a.resultOut <- mulhu(data1, data2)
 
 			case isa.Div.Functs:
 			case isa.Divu.Functs:
@@ -116,34 +137,6 @@ func (a *ALU) Run() error {
 	}()
 
 	return nil
-}
-
-func (a *ALU) Port() device.Port {
-	return device.Port{
-		Wires.Data1In: a.data1In,
-		Wires.Data2In: a.data2In,
-		Wires.DataOut: a.dataOut,
-	}
-}
-
-func (a *ALU) Data1In(data device.WiresIn) {
-	a.data1In = data
-}
-
-func (a *ALU) Data2In(data device.WiresIn) {
-	a.data2In = data
-}
-
-func (a *ALU) DataOut() device.WiresOut {
-	return a.dataOut
-}
-
-// FunctsIn this wire receives a 32-bit value in which
-// the lower 10 bits encondes ISA fields funct7 and funct3:
-//
-//    [XXXXXXXX XXXXXXXX XXXXXX77 77777333]
-func (a *ALU) FunctsIn(functs device.WiresIn) {
-	a.functsIn = functs
 }
 
 // mulh** returns high 32-bit portion of multiplication product.

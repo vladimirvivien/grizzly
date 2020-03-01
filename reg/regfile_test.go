@@ -55,35 +55,35 @@ func TestRegisterFile(t *testing.T) {
 			},
 			evalrs: func(t *testing.T, rf *RegisterFile) {
 				//rf.Enable()
-				rs1 := <-rf.RS1DataOut()
+				rs1 := <-rf.GetPin(Out.RS1Data)
 				if rs1 != 0x0 {
 					t.Errorf("Unexpected RS1 data %d", rs1)
 				}
-				rs1 = <-rf.RS1DataOut()
+				rs1 = <-rf.GetPin(Out.RS1Data)
 				if rs1 != 0x1 {
 					t.Errorf("Unexpected RS1 data %d", rs1)
 				}
-				rs2 := <-rf.RS2DataOut()
+				rs2 := <-rf.GetPin(Out.RS2Data)
 				if rs2 != 0x2 {
 					t.Errorf("Unexpected RS2 data %d", rs2)
 				}
-				rs2 = <-rf.RS2DataOut()
+				rs2 = <-rf.GetPin(Out.RS2Data)
 				if rs2 != 0x3 {
 					t.Errorf("Unexpected RS2 data %d", rs2)
 				}
-				rs2 = <-rf.RS2DataOut()
+				rs2 = <-rf.GetPin(Out.RS2Data)
 				if rs2 != 0x4 {
 					t.Errorf("Unexpected RS2 data %d", rs2)
 				}
-				rs2 = <-rf.RS2DataOut()
+				rs2 = <-rf.GetPin(Out.RS2Data)
 				if rs2 != 0xCAFE {
 					t.Errorf("Unexpected RS2 data %d", rs2)
 				}
-				rs1 = <-rf.RS1DataOut()
+				rs1 = <-rf.GetPin(Out.RS1Data)
 				if rs1 != 0xA {
 					t.Errorf("Unexpected RS1 data %d", rs1)
 				}
-				rs2 = <-rf.RS2DataOut()
+				rs2 = <-rf.GetPin(Out.RS2Data)
 				if rs2 != 0xCAFE {
 					t.Errorf("Unexpected RS2 data %d", rs2)
 				}
@@ -99,10 +99,10 @@ func TestRegisterFile(t *testing.T) {
 
 			// wire ports
 			rs1wire, rs2wire, data, rd := test.rslines()
-			reg.RS1AddrIn(rs1wire)
-			reg.RS2AddrIn(rs2wire)
-			reg.DataIn(data)
-			reg.RDAddrIn(rd)
+			reg.SetPin(In.RS1Addr, rs1wire)
+			reg.SetPin(In.RS2Addr, rs2wire)
+			reg.SetPin(In.Data, data)
+			reg.SetPin(In.RDAddr, rd)
 
 			// start component
 			if err := reg.Run(); err != nil {

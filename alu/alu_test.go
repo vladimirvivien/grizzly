@@ -187,9 +187,9 @@ func TestALUROps(t *testing.T) {
 	alu := newAlu()
 
 	// wire ports
-	alu.Data1In(d1wires)
-	alu.Data2In(d2wires)
-	alu.FunctsIn(opwires)
+	alu.SetPin(In.Operand1, d1wires)
+	alu.SetPin(In.Operand2, d2wires)
+	alu.SetPin(In.Functs, opwires)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -209,7 +209,7 @@ func TestALUROps(t *testing.T) {
 			go func() {
 				defer close(wait)
 				// interpret as signed for proper comparison
-				result := int32(<-alu.DataOut())
+				result := int32(<-alu.GetPin(Out.Result))
 				expected := int32(test.expected())
 				if result != expected {
 					t.Errorf("unexpected test result for op %s: %d", test.name, result)

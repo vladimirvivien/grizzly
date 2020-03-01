@@ -25,15 +25,24 @@ var (
 // Inst represents a RISCV-32 instruction
 type Inst = uint32
 
-// Fields represents the fields of a decoded instructions
-type Fields struct {
+// RFields represents instruction fields for R-format
+type RFields struct {
 	Opcode uint32 // opcode format
 	Rd     uint32 // destination register
 	Funct3 uint32 // ISA 3-bit funct field
 	Rs1    uint32 // register 1
 	Rs2    uint32 // register 2
 	Funct7 uint32 // ISA 7-bit funct field
-	Imm    uint32 // immediate
+}
+
+// Functs encodes R-format fields funct7 and funct3 by concatenating
+// their values into the lower 10 bits of result:
+//
+//    [XXXXXXXX XXXXXXXX XXXXXX77 77777333]
+func (f *RFields) Functs() (result uint32) {
+	result = (result | f.Funct7) << 3
+	result = result | f.Funct3
+	return result
 }
 
 // R-type operation
@@ -43,9 +52,8 @@ type rop struct {
 	Opcode uint32
 }
 
-// R-type operations
 var (
-	// RISC-32 I
+	// RISC-32 R
 	Add  = rop{Name: "add", Functs: uint32(0b0000000_000), Opcode: Opcodes.R}
 	Sub  = rop{Name: "sub", Functs: uint32(0b0100000_000), Opcode: Opcodes.R}
 	Sll  = rop{Name: "sll", Functs: uint32(0b0000000_001), Opcode: Opcodes.R}
@@ -78,14 +86,4 @@ func DecFuncts(functs uint32) (funct7, funct3 uint32) {
 	funct3 = functs & 0x7
 	funct7 = (functs >> 3) & 0x7F
 	return
-}
-
-// EncFuncts encodes ISA funct fields funct7 and funct3 by concatenating
-// their values into the lower 10 bits of result:
-//
-//    [XXXXXXXX XXXXXXXX XXXXXX77 77777333]
-func EncFuncts(f7, f3 uint32) (result uint32) {
-	result = (result | f7) << 3
-	result = result | f3
-	return result
 }

@@ -8,11 +8,14 @@ func MakeWires() Wires {
 
 type WiresIn = <-chan uint32
 type WiresOut = WiresIn
-type Datapath []Wires
 
-type Port map[string]<-chan uint32
+type Pin = <-chan uint32
+type PinLabel = string
+type Pins = map[PinLabel]Pin
 
 type Type interface {
 	Run() error
-	Port() Port
+	GetPins() Pins
+	GetPin(PinLabel) Pin
+	SetPin(PinLabel, Pin)
 }

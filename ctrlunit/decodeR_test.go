@@ -1,4 +1,4 @@
-package decoder
+package ctrlunit
 
 import (
 	"fmt"
@@ -7,12 +7,15 @@ import (
 	"github.com/vladimirvivien/grizzly/isa"
 )
 
-// TestDecoder_DecodeRFormat tests R-format instructions
-func TestDecoder_R(t *testing.T) {
+// TestDecoder_R tests R-format instructions of the form
+//
+// fn7     RD2   RD1   fn3 RS    OPCODE
+// 0000000_00010_00001_000_00101_0110011
+func TestDecodeR(t *testing.T) {
 	tests := []struct {
 		name       string
 		encode     func() isa.Inst
-		assess     func(*isa.Fields) error
+		assess     func(*isa.RFields) error
 		shouldFail bool
 	}{
 		{
@@ -20,10 +23,19 @@ func TestDecoder_R(t *testing.T) {
 			encode: func() isa.Inst {
 				return 0b0000000_00010_00001_000_00101_0110011
 			},
-			assess: func(fields *isa.Fields) error {
-				functs := isa.EncFuncts(fields.Funct7, fields.Funct3)
+			assess: func(fields *isa.RFields) error {
+				functs := fields.Functs()
 				if fields.Opcode != isa.Add.Opcode || functs != isa.Add.Functs {
 					return fmt.Errorf("Instruction %s has wrong field values: %#v", isa.Add.Name, fields)
+				}
+				if fields.Rd != 0b00101 {
+					return fmt.Errorf("Instruction %s has wrong RD field value: %#v", isa.Add.Name, fields)
+				}
+				if fields.Rs1 != 0b00001 {
+					return fmt.Errorf("Instruction %s has wrong RS1 field value: %#v", isa.Add.Name, fields)
+				}
+				if fields.Rs2 != 0b00010 {
+					return fmt.Errorf("Instruction %s has wrong RS2 field value: %#v", isa.Add.Name, fields)
 				}
 				return nil
 			},
@@ -33,8 +45,8 @@ func TestDecoder_R(t *testing.T) {
 			encode: func() isa.Inst {
 				return 0b0100000_00010_00001_000_00101_0110011
 			},
-			assess: func(fields *isa.Fields) error {
-				functs := isa.EncFuncts(fields.Funct7, fields.Funct3)
+			assess: func(fields *isa.RFields) error {
+				functs := fields.Functs()
 				if fields.Opcode != isa.Sub.Opcode || functs != isa.Sub.Functs {
 					return fmt.Errorf("Instruction %s has wrong field values: %#v", isa.Sub.Name, fields)
 				}
@@ -46,8 +58,8 @@ func TestDecoder_R(t *testing.T) {
 			encode: func() isa.Inst {
 				return 0b0000000_00010_00001_001_00101_0110011
 			},
-			assess: func(fields *isa.Fields) error {
-				functs := isa.EncFuncts(fields.Funct7, fields.Funct3)
+			assess: func(fields *isa.RFields) error {
+				functs := fields.Functs()
 				if fields.Opcode != isa.Sll.Opcode || functs != isa.Sll.Functs {
 					return fmt.Errorf("Instruction %s has wrong field values: %#v", isa.Sll.Name, fields)
 				}
@@ -59,8 +71,8 @@ func TestDecoder_R(t *testing.T) {
 			encode: func() isa.Inst {
 				return 0b0000000_00010_00001_010_00101_0110011
 			},
-			assess: func(fields *isa.Fields) error {
-				functs := isa.EncFuncts(fields.Funct7, fields.Funct3)
+			assess: func(fields *isa.RFields) error {
+				functs := fields.Functs()
 				if fields.Opcode != isa.Slt.Opcode || functs != isa.Slt.Functs {
 					return fmt.Errorf("Instruction %s has wrong field values: %#v", isa.Slt.Name, fields)
 				}
@@ -72,8 +84,8 @@ func TestDecoder_R(t *testing.T) {
 			encode: func() isa.Inst {
 				return 0b0000000_00010_00001_101_00101_0110011
 			},
-			assess: func(fields *isa.Fields) error {
-				functs := isa.EncFuncts(fields.Funct7, fields.Funct3)
+			assess: func(fields *isa.RFields) error {
+				functs := fields.Functs()
 				if fields.Opcode != isa.Srl.Opcode || functs != isa.Srl.Functs {
 					return fmt.Errorf("Instruction %s has wrong field values: %#v", isa.Srl.Name, fields)
 				}
@@ -85,8 +97,8 @@ func TestDecoder_R(t *testing.T) {
 			encode: func() isa.Inst {
 				return 0b0100000_00010_00001_101_00101_0110011
 			},
-			assess: func(fields *isa.Fields) error {
-				functs := isa.EncFuncts(fields.Funct7, fields.Funct3)
+			assess: func(fields *isa.RFields) error {
+				functs := fields.Functs()
 				if fields.Opcode != isa.Sra.Opcode || functs != isa.Sra.Functs {
 					return fmt.Errorf("Instruction %s has wrong field values: %#v", isa.Sra.Name, fields)
 				}
@@ -98,8 +110,8 @@ func TestDecoder_R(t *testing.T) {
 			encode: func() isa.Inst {
 				return 0b0000000_00010_00001_110_00101_0110011
 			},
-			assess: func(fields *isa.Fields) error {
-				functs := isa.EncFuncts(fields.Funct7, fields.Funct3)
+			assess: func(fields *isa.RFields) error {
+				functs := fields.Functs()
 				if fields.Opcode != isa.Or.Opcode || functs != isa.Or.Functs {
 					return fmt.Errorf("Instruction %s has wrong field values: %#v", isa.Or.Name, fields)
 				}
@@ -111,8 +123,8 @@ func TestDecoder_R(t *testing.T) {
 			encode: func() isa.Inst {
 				return 0b0000000_00010_00001_111_00101_0110011
 			},
-			assess: func(fields *isa.Fields) error {
-				functs := isa.EncFuncts(fields.Funct7, fields.Funct3)
+			assess: func(fields *isa.RFields) error {
+				functs := fields.Functs()
 				if fields.Opcode != isa.And.Opcode || functs != isa.And.Functs {
 					return fmt.Errorf("Instruction %s has wrong field values: %#v", isa.And.Name, fields)
 				}
@@ -123,16 +135,8 @@ func TestDecoder_R(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			fields, err := decode(test.encode())
-			if err != nil {
-				if !test.shouldFail {
-					t.Fatalf("Unexpected error: %s", err)
-				}
-				t.Logf("Error: %s", err)
-			}
-
-			err = test.assess(fields)
-
+			fields := decodeR(test.encode())
+			err := test.assess(fields)
 			if err != nil {
 				if !test.shouldFail {
 					t.Fatalf("Unexpected error: %s", err)
