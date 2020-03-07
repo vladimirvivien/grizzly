@@ -106,3 +106,14 @@ func (r *RegisterFile) write(addr uint32, data uint32) {
 	defer r.Unlock()
 	r.file[addr] = data
 }
+
+// Probe probes and returns value at specified address.
+// This method is there mainly for testing.
+func (r *RegisterFile) Probe(addr uint32) uint32 {
+	return r.read(addr)
+}
+
+// SideLoad a testing function use to load values directly into reg
+func (r *RegisterFile) SideLoad(addr uint32, val uint32) {
+	r.write(addr, val)
+}
