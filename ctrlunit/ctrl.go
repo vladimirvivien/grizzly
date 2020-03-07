@@ -26,7 +26,7 @@ var (
 )
 
 type Controller struct {
-	pins      device.Pins
+	*device.Base
 	rs1Out    device.Wires
 	rs2Out    device.Wires
 	rdOut     device.Wires
@@ -39,31 +39,18 @@ func New() device.Type {
 
 func newCtrl() *Controller {
 	c := &Controller{
-		pins:      make(device.Pins),
+		Base:      device.NewBase(),
 		functsOut: device.MakeWires(),
 		rs1Out:    device.MakeWires(),
 		rs2Out:    device.MakeWires(),
 		rdOut:     device.MakeWires(),
 	}
-	c.pins = device.Pins{
-		Out.Functs: c.functsOut,
-		Out.RS1:    c.rs1Out,
-		Out.RS2:    c.rs2Out,
-		Out.RD:     c.rdOut,
-	}
+	c.SetPin(Out.Functs, c.functsOut)
+	c.SetPin(Out.RS1, c.rs1Out)
+	c.SetPin(Out.RS2, c.rs2Out)
+	c.SetPin(Out.RD, c.rdOut)
+
 	return c
-}
-
-func (c *Controller) GetPins() device.Pins {
-	return c.pins
-}
-
-func (c *Controller) GetPin(label device.PinLabel) device.Pin {
-	return c.pins[label]
-}
-
-func (c *Controller) SetPin(label device.PinLabel, pin device.Pin) {
-	c.pins[label] = pin
 }
 
 func (c *Controller) Run() error {

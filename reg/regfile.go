@@ -29,10 +29,10 @@ var (
 )
 
 type RegisterFile struct {
+	*device.Base
 	file       []uint32
 	rs1DataOut device.Wires
 	rs2DataOut device.Wires
-	pins       device.Pins
 	sync.RWMutex
 }
 
@@ -45,14 +45,12 @@ func newRegister() *RegisterFile {
 		file:       make([]uint32, 32, 32),
 		rs1DataOut: device.MakeWires(),
 		rs2DataOut: device.MakeWires(),
-		pins:       make(device.Pins),
+		Base:       device.NewBase(),
 	}
 
 	// wire pin port
-	r.pins = device.Pins{
-		Out.RS1Data: r.rs1DataOut,
-		Out.RS2Data: r.rs2DataOut,
-	}
+	r.SetPin(Out.RS1Data, r.rs1DataOut)
+	r.SetPin(Out.RS2Data, r.rs2DataOut)
 
 	return r
 }
@@ -63,7 +61,7 @@ func (r *RegisterFile) Run() error {
 		defer close(r.rs1DataOut)
 		for {
 			select {
-			case addr := <-r.pins[In.RS1Addr]:
+			case addr := <-r.GetPin(In.RS1Addr):
 				r.rs1DataOut <- r.read(addr)
 			}
 		}
@@ -74,7 +72,7 @@ func (r *RegisterFile) Run() error {
 		defer close(r.rs2DataOut)
 		for {
 			select {
-			case addr := <-r.pins[In.RS2Addr]:
+			case addr := <-r.GetPin(In.RS2Addr):
 				r.rs2DataOut <- r.read(addr)
 			}
 		}
@@ -87,26 +85,14 @@ func (r *RegisterFile) Run() error {
 	go func() {
 		for {
 			select {
-			case data := <-r.pins[In.Data]:
-				addr := <-r.pins[In.RDAddr]
+			case data := <-r.GetPin(In.Data):
+				addr := <-r.GetPin(In.RDAddr)
 				r.write(addr, data)
 			}
 		}
 	}()
 
 	return nil
-}
-
-func (r *RegisterFile) GetPins() device.Pins {
-	return r.pins
-}
-
-func (r *RegisterFile) GetPin(label device.PinLabel) device.Pin {
-	return r.pins[label]
-}
-
-func (r *RegisterFile) SetPin(label device.PinLabel, pin device.Pin) {
-	r.pins[label] = pin
 }
 
 func (r *RegisterFile) read(addr uint32) uint32 {

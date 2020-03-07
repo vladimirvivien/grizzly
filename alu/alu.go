@@ -25,7 +25,7 @@ var (
 
 type ALU struct {
 	resultOut device.Wires // output
-	pins      device.Pins
+	*device.Base
 }
 
 func New() device.Type {
@@ -35,25 +35,12 @@ func New() device.Type {
 func newAlu() *ALU {
 	a := &ALU{
 		resultOut: device.MakeWires(),
+		Base:      device.NewBase(),
 	}
 
-	a.pins = device.Pins{
-		Out.Result: a.resultOut,
-	}
+	a.SetPin(Out.Result, a.resultOut)
 
 	return a
-}
-
-func (a *ALU) GetPins() device.Pins {
-	return a.pins
-}
-
-func (a *ALU) GetPin(label device.PinLabel) device.Pin {
-	return a.pins[label]
-}
-
-func (a *ALU) SetPin(label device.PinLabel, pin device.Pin) {
-	a.pins[label] = pin
 }
 
 // Run starts the ALU.

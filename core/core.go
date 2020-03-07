@@ -18,7 +18,7 @@ var (
 )
 
 type Core struct {
-	pins         device.Pins
+	*device.Base
 	instructions device.WiresIn
 	reg          device.Type
 	alu          device.Type
@@ -31,25 +31,14 @@ func New() device.Type {
 
 func newCore() *Core {
 	return &Core{
+		Base: device.NewBase(),
 		reg:  reg.New(),
 		alu:  alu.New(),
 		ctrl: ctrlunit.New(),
-		pins: make(device.Pins),
 	}
 }
 
-func (c *Core) GetPins() device.Pins {
-	return c.pins
-}
-
-func (c *Core) GetPin(label device.PinLabel) device.Pin {
-	return c.pins[label]
-}
-
-func (c *Core) SetPin(label device.PinLabel, pin device.Pin) {
-	c.pins[label] = pin
-}
-
+// Run starts the core and its components
 func (c *Core) Run() error {
 	if err := c.wireComponents(); err != nil {
 		return err
@@ -58,7 +47,7 @@ func (c *Core) Run() error {
 }
 
 func (c *Core) wireComponents() error {
-	if c.pins[In.Insts] == nil {
+	if c.Base.GetPins()[In.Insts] == nil {
 		return fmt.Errorf("instructions datapath not set")
 	}
 
@@ -79,6 +68,7 @@ func (c *Core) wireComponents() error {
 	return nil
 }
 
+// startComponents loop through each component and invoke Run.
 func (c *Core) startComponents() error {
 	for _, comp := range []device.Type{c.ctrl, c.reg, c.alu} {
 		if err := comp.Run(); err != nil {
