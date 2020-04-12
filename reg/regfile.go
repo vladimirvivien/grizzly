@@ -1,6 +1,7 @@
 package reg
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/vladimirvivien/grizzly/device"
@@ -11,12 +12,14 @@ var (
 		RS1Addr,
 		RS2Addr,
 		RDAddr,
-		Data device.PinLabel
+		Data,
+		Werf device.PinLabel
 	}{
 		RS1Addr: "regfile.rs1Addr.in",
 		RS2Addr: "regfile.rs2Addr.in",
 		RDAddr:  "regfile.rdAddr.in",
 		Data:    "regfile.data.in",
+		Werf:    "regfile.werf.in",
 	}
 
 	Out = struct {
@@ -33,6 +36,7 @@ type RegisterFile struct {
 	file       []uint32
 	rs1DataOut device.Wires
 	rs2DataOut device.Wires
+	wready     device.Wires
 	sync.RWMutex
 }
 
@@ -45,6 +49,7 @@ func newRegister() *RegisterFile {
 		file:       make([]uint32, 32, 32),
 		rs1DataOut: device.MakeWires(),
 		rs2DataOut: device.MakeWires(),
+		wready:     device.MakeWires(),
 		Base:       device.NewBase(),
 	}
 
@@ -78,16 +83,31 @@ func (r *RegisterFile) Run() error {
 		}
 	}()
 
-	// data, rd:
-	// for this to work in sequential
-	// circuit, data must be specified
-	// prior to rd
+	// wePin - receives write-enable signal
+	// write operation blocks until it is received
+	werfPin := r.GetPin(In.Werf)
+	dataPin := r.GetPin(In.Data)
+	dataAddrPin := r.GetPin(In.RDAddr)
+
+	// TODO:
+	// Update tests to use sequence below:
+
+	// write loop sequence:
+	// 1. writeEnale
+	// 2. RD Data
+	// 3. RD Addr
 	go func() {
+		defer close(r.wready)
 		for {
 			select {
-			case data := <-r.GetPin(In.Data):
-				addr := <-r.GetPin(In.RDAddr)
+			case <-werfPin:
+				data := <-dataPin
+				addr := <-dataAddrPin
 				r.write(addr, data)
+				// signal write ready
+				go func() {
+					r.wready <- 1
+				}()
 			}
 		}
 	}()
@@ -104,16 +124,28 @@ func (r *RegisterFile) read(addr uint32) uint32 {
 func (r *RegisterFile) write(addr uint32, data uint32) {
 	r.Lock()
 	defer r.Unlock()
+	if addr == 0 {
+		return
+	}
 	r.file[addr] = data
 }
 
-// Probe probes and returns value at specified address.
-// This method is there mainly for testing.
+// Probe is a test-only method that blocks until wready
+// then reads the specified address
+// if wready is triggered by a previous write, this blocks
+// indefinitely
 func (r *RegisterFile) Probe(addr uint32) uint32 {
+	<-r.wready
 	return r.read(addr)
 }
 
-// SideLoad a testing function use to load values directly into reg
+// SideLoad is test-only method used to load values directly into reg
 func (r *RegisterFile) SideLoad(addr uint32, val uint32) {
 	r.write(addr, val)
+}
+
+func (r *RegisterFile) Print() {
+	for i, v := range r.file {
+		fmt.Printf("file[%x] = %b\n", i, v)
+	}
 }

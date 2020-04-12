@@ -1,5 +1,7 @@
 package device
 
+type Datapath = []byte
+
 type Wires = chan uint32
 
 func MakeWires() Wires {

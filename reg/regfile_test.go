@@ -20,16 +20,17 @@ func TestRegisterFile(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		rslines func() (rs1, rs2, data, rd <-chan uint32)
+		rslines func() (rs1, rs2, data, rd, werf <-chan uint32)
 		evalrs  func(t *testing.T, rf *RegisterFile)
 	}{
 		{
 			name: "test rs values",
-			rslines: func() (rs1, rs2, data, rd <-chan uint32) {
+			rslines: func() (rs1, rs2, data, rd, werf <-chan uint32) {
 				rs1wire := make(chan uint32)
 				rs2wire := make(chan uint32)
 				datawire := make(chan uint32)
 				rdwire := make(chan uint32)
+				wenable := make(chan uint32)
 				go func() {
 					defer func() {
 						close(rs1wire)
@@ -44,6 +45,7 @@ func TestRegisterFile(t *testing.T) {
 					//write data
 					// data must always be specified before rd
 					// or risk deadlock
+					wenable <- 1
 					datawire <- 0xCAFE
 					rdwire <- 0x05
 					rs2wire <- 0x5 // read the data
@@ -51,7 +53,7 @@ func TestRegisterFile(t *testing.T) {
 					rs1wire <- 0x7
 					rs2wire <- 0x5 // reread
 				}()
-				return rs1wire, rs2wire, datawire, rdwire
+				return rs1wire, rs2wire, datawire, rdwire, wenable
 			},
 			evalrs: func(t *testing.T, rf *RegisterFile) {
 				//rf.Enable()
@@ -98,11 +100,12 @@ func TestRegisterFile(t *testing.T) {
 			reg.file = regdata
 
 			// wire ports
-			rs1wire, rs2wire, data, rd := test.rslines()
+			rs1wire, rs2wire, data, rd, werf := test.rslines()
 			reg.SetPin(In.RS1Addr, rs1wire)
 			reg.SetPin(In.RS2Addr, rs2wire)
 			reg.SetPin(In.Data, data)
 			reg.SetPin(In.RDAddr, rd)
+			reg.SetPin(In.Werf, werf)
 
 			// start component
 			if err := reg.Run(); err != nil {

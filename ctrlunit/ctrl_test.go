@@ -16,12 +16,12 @@ func TestController(t *testing.T) {
 	tests := []struct {
 		name string
 		inst func() isa.Inst
-		eval func(uint32, uint32, uint32, uint32)
+		eval func(uint32, uint32, uint32, uint32, uint32)
 	}{
 		{
 			name: "R format",
 			inst: func() isa.Inst { return 0b0000000_00010_00001_000_00101_0110011 },
-			eval: func(functs, rs1, rs2, rd uint32) {
+			eval: func(rs1, rs2, functs, werf, rd uint32) {
 				if functs != isa.Add.Functs {
 					t.Errorf("Unexpected Functs value: %b", functs)
 				}
@@ -33,6 +33,9 @@ func TestController(t *testing.T) {
 				}
 				if rd != 0b00101 {
 					t.Errorf("Unexpected rd value: %b", rd)
+				}
+				if werf != 1 {
+					t.Error("Unexpedted WERF value")
 				}
 			},
 		},
@@ -53,9 +56,10 @@ func TestController(t *testing.T) {
 			go func() {
 				defer close(wait)
 				test.eval(
-					<-ctrl.GetPin(Out.Functs),
 					<-ctrl.GetPin(Out.RS1),
 					<-ctrl.GetPin(Out.RS2),
+					<-ctrl.GetPin(Out.Functs),
+					<-ctrl.GetPin(Out.Werf),
 					<-ctrl.GetPin(Out.RD),
 				)
 			}()

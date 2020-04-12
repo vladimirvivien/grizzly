@@ -19,10 +19,9 @@ var (
 
 type Core struct {
 	*device.Base
-	instructions device.WiresIn
-	reg          device.Type
-	alu          device.Type
-	ctrl         device.Type
+	reg  device.Type
+	alu  device.Type
+	ctrl device.Type
 }
 
 func New() device.Type {
@@ -47,17 +46,18 @@ func (c *Core) Run() error {
 }
 
 func (c *Core) wireComponents() error {
-	if c.Base.GetPins()[In.Insts] == nil {
+	if c.GetPin(In.Insts) == nil {
 		return fmt.Errorf("instructions datapath not set")
 	}
 
 	// wire controller
-	c.ctrl.SetPin(ctrlunit.In.Insts, c.instructions)
+	c.ctrl.SetPin(ctrlunit.In.Insts, c.GetPin(In.Insts))
 
 	// wire register
 	c.reg.SetPin(reg.In.RS1Addr, c.ctrl.GetPin(ctrlunit.Out.RS1))
 	c.reg.SetPin(reg.In.RS2Addr, c.ctrl.GetPin(ctrlunit.Out.RS2))
 	c.reg.SetPin(reg.In.RDAddr, c.ctrl.GetPin(ctrlunit.Out.RD))
+	c.reg.SetPin(reg.In.Werf, c.ctrl.GetPin(ctrlunit.Out.Werf))
 
 	// wire alu
 	c.alu.SetPin(alu.In.Functs, c.ctrl.GetPin(ctrlunit.Out.Functs))
