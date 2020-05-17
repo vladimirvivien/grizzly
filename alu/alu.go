@@ -56,52 +56,52 @@ func (a *ALU) Run() error {
 			functs := <-a.GetPin(In.Functs)
 
 			switch functs {
-			// add
-			case isa.Add.Functs:
+			// addition: add, addi
+			case isa.Add.Functs, isa.Addi.Functs:
 				a.resultOut <- data1 + data2
 
 			// sub
 			case isa.Sub.Functs:
 				a.resultOut <- data1 - data2
 
-			// sll - shift logical left
-			case isa.Sll.Functs:
+			// shift logical left: ssl, ssli
+			case isa.Sll.Functs, isa.Slli.Functs:
 				a.resultOut <- data1 << data2
 
-			// slt - set if less then (signed)
-			case isa.Slt.Functs:
+			// set if less then (signed): slt, slti
+			case isa.Slt.Functs, isa.Slti.Functs:
 				var result uint32
 				if int32(data1) < int32(data2) {
 					result = 1
 				}
 				a.resultOut <- result
 
-			// sltu - set if less then (unsigned)
-			case isa.Sltu.Functs:
+			// set if less then (unsigned): sltu, sltiu
+			case isa.Sltu.Functs, isa.Sltiu.Functs:
 				var result uint32
 				if data1 < data2 {
 					result = 1
 				}
 				a.resultOut <- result
 
-			// xor
-			case isa.Or.Functs:
+			// or, ori
+			case isa.Or.Functs, isa.Ori.Functs:
 				a.resultOut <- data1 ^ data2
 
-			// srl - shift right logical
-			case isa.Srl.Functs:
+			// shift right logical: srl, srli
+			case isa.Srl.Functs, isa.Srli.Functs:
 				a.resultOut <- data1 >> data2
 
-			// sra - shift right arithmetic
-			case isa.Sra.Functs:
+			// shift right arithmetic: sra, srai
+			case isa.Sra.Functs, isa.Srai.Functs:
 				a.resultOut <- uint32(int32(data1) >> data2)
 
-			// or
-			case isa.Or.Functs:
+			// or, ori
+			case isa.Or.Functs, isa.Ori.Functs:
 				a.resultOut <- data1 | data2
 
-			// and
-			case isa.And.Functs:
+			// and, andi
+			case isa.And.Functs, isa.Andi.Functs:
 				a.resultOut <- data1 & data2
 
 			// mul

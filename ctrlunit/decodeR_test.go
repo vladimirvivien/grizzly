@@ -25,8 +25,11 @@ func TestDecodeR(t *testing.T) {
 			},
 			assess: func(fields *isa.RFields) error {
 				functs := fields.Functs()
-				if fields.Opcode != isa.Add.Opcode || functs != isa.Add.Functs {
-					return fmt.Errorf("Instruction %s has wrong field values: %#v", isa.Add.Name, fields)
+				if fields.Opcode != isa.Add.Opcode {
+					return fmt.Errorf("Unexpected Opcode %b in %s: %#v", fields.Opcode, isa.Add.Name, fields)
+				}
+				if functs != isa.Add.Functs {
+					return fmt.Errorf("Unexpected Functs for %s: %#v", isa.Add.Name, fields)
 				}
 				if fields.Rd != 0b00101 {
 					return fmt.Errorf("Instruction %s has wrong RD field value: %#v", isa.Add.Name, fields)

@@ -16,35 +16,7 @@ func TestCore(t *testing.T) {
 		eval      func(*testing.T, *Core, chan struct{})
 	}{
 		{
-			name: "single addition",
-			core: func(t *testing.T) *Core {
-				cor := newCore()
-				regfile := cor.reg.(*reg.RegisterFile)
-				regfile.SideLoad(0b00001, 10)
-				regfile.SideLoad(0b00010, 7)
-				return cor
-			},
-			instructs: func(t *testing.T) device.WiresOut {
-				datapath := make(device.Wires)
-				go func() {
-					datapath <- 0b0000000_00010_00001_000_00101_0110011 // add reg[5], reg[1], reg[2]
-				}()
-				return datapath
-			},
-			eval: func(t *testing.T, cor *Core, waiter chan struct{}) {
-				defer close(waiter)
-				regfile := cor.reg.(*reg.RegisterFile)
-				go func() {
-					rd := regfile.Probe(0b00101)
-					if rd != 17 {
-						t.Fatalf("unexpected add operation result %b", rd)
-					}
-				}()
-
-			},
-		},
-		{
-			name: "multipe additions",
+			name: "addition",
 			core: func(t *testing.T) *Core {
 				cor := newCore()
 				regfile := cor.reg.(*reg.RegisterFile)

@@ -77,16 +77,36 @@ func (c *Controller) Run() error {
 
 			switch opcode {
 			case isa.Opcodes.R:
-				// R-format instructions
+				// R-format:
 				// decodes instructions
-				// read operands RS1, RS2
-				// Exec ALU operation
-				// write back result RD
+				// Sends address RS1, RS2, WERF to regfile
+				// Send functs to ALU
+				// ALU op result stored regfile[RD]
 				fields := decodeR(inst)
 				c.rs1Out <- fields.Rs1
 				c.rs2Out <- fields.Rs2
 				c.functsOut <- fields.Functs()
 				c.werf <- 1 // TODO change to bit type
+				c.rdOut <- fields.Rd
+
+			case isa.Opcodes.RI:
+				// RI-format (register immediate)
+				// Sends sign-extnd value of 12-bit MSB from ins to ALU
+				// Sends R1, WERF to Refile
+				// ALU op result stored in regfile[RD]
+				fields := decodeRI(inst)
+				c.rs1Out <- fields.Rs1
+
+				// select Imm value or shift amout
+				switch fields.Funct3 {
+				case 0b001, 0b101:
+					c.rs2Out <- fields.Shift
+					c.functsOut <- fields.Funct7
+				default:
+					c.rs2Out <- fields.Imm
+				}
+
+				c.werf <- 1
 				c.rdOut <- fields.Rd
 
 			default:
