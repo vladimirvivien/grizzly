@@ -92,19 +92,19 @@ func TestDecodeRI(t *testing.T) {
 				t.Errorf("Unexpected Opcode %b for op %s: %#v", fields.Opcode, test.name, fields)
 			}
 			if fields.Funct3 != test.funct3 {
-				t.Errorf("Op %s has unexpected Funct3 %b", test.name, fields.Functs())
+				t.Errorf("Operation %s has unexpected Funct3 %b", test.name, fields.Functs())
 			}
 			if fields.Rd != test.rd {
-				t.Errorf("Op %s has unexpected RD %b", test.name, fields.Rd)
+				t.Errorf("Operation %s has unexpected RD %b", test.name, fields.Rd)
 			}
 			if fields.Rs1 != test.rs1 {
-				t.Errorf("Op %s has unexpected RS1 %b", test.name, fields.Rs1)
+				t.Errorf("Operation %s has unexpected RS1 %b", test.name, fields.Rs1)
 			}
 			if fields.Shift != test.shift {
-				t.Errorf("Op %s has unexpected shift amt %b", test.name, fields.Imm)
+				t.Errorf("Operation %s has unexpected shift amt %b", test.name, fields.Imm)
 			}
 			if fields.Imm != test.imm {
-				t.Errorf("Op %s has unexpected Imm %b", test.name, fields.Imm)
+				t.Errorf("Operation %s has unexpected Imm %b", test.name, fields.Imm)
 			}
 		})
 	}

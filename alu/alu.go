@@ -2,29 +2,81 @@ package alu
 
 import (
 	"github.com/vladimirvivien/grizzly/device"
-	"github.com/vladimirvivien/grizzly/isa"
+)
+
+var (
+	Operations = struct {
+		Add  uint32
+		And  uint32
+		Sub  uint32
+		Or   uint32
+		Sll  uint32
+		Slt  uint32
+		Sltu uint32
+		Sra  uint32
+		Srl  uint32
+		Xor  uint32
+
+		// mul
+		Mul    uint32
+		Mulh   uint32
+		Mulhsu uint32
+		Mulhu  uint32
+
+		// div
+		Div  uint32
+		Divu uint32
+		Rem  uint32
+		Remu uint32
+	}{
+		Add:  0b00000,
+		And:  0b00001,
+		Sub:  0b00010,
+		Or:   0b00011,
+		Sll:  0b00100,
+		Slt:  0b00101,
+		Sltu: 0b00110,
+		Sra:  0b00111,
+		Srl:  0b01000,
+		Xor:  0b01001,
+
+		// Mul
+		Mul:    0b01010,
+		Mulh:   0b01011,
+		Mulhsu: 0b01100,
+		Mulhu:  0b01101,
+
+		// Div
+		Div:  0b01110,
+		Divu: 0b01111,
+		Rem:  0b10000,
+		Remu: 0b10001,
+	}
 )
 
 var (
 	In = struct {
-		Operand1 device.PinLabel // operand1
-		Operand2 device.PinLabel // operand2
-		Functs   device.PinLabel // function bits
+		Operand1  device.PinLabel // operand1
+		Operand2  device.PinLabel // operand2
+		Operation device.PinLabel // function bits
 	}{
-		Operand1: "alu.data1.in",
-		Operand2: "alu.data2.in",
-		Functs:   "alu.funct.in",
+		Operand1:  "alu.data1.in",
+		Operand2:  "alu.data2.in",
+		Operation: "alu.operation.in",
 	}
 
 	Out = struct {
 		Result device.PinLabel
+		Zero   device.PinLabel
 	}{
 		Result: "alu.result.out",
+		Zero:   "alu.zero.out",
 	}
 )
 
 type ALU struct {
 	resultOut device.Wires // output
+	zeroOut   device.Wires // zero line
 	*device.Base
 }
 
@@ -52,24 +104,24 @@ func (a *ALU) Run() error {
 		for {
 			data1 := <-a.GetPin(In.Operand1)
 			data2 := <-a.GetPin(In.Operand2)
-			// functs concatanate all function bits
-			functs := <-a.GetPin(In.Functs)
+			// ALU Operation
+			op := <-a.GetPin(In.Operation)
 
-			switch functs {
+			switch op {
 			// addition: add, addi
-			case isa.Add.Functs, isa.Addi.Functs:
+			case Operations.Add:
 				a.resultOut <- data1 + data2
 
 			// sub
-			case isa.Sub.Functs:
+			case Operations.Sub:
 				a.resultOut <- data1 - data2
 
-			// shift logical left: ssl, ssli
-			case isa.Sll.Functs, isa.Slli.Functs:
+			// shift logical left: sll, slli
+			case Operations.Sll:
 				a.resultOut <- data1 << data2
 
 			// set if less then (signed): slt, slti
-			case isa.Slt.Functs, isa.Slti.Functs:
+			case Operations.Slt:
 				var result uint32
 				if int32(data1) < int32(data2) {
 					result = 1
@@ -77,7 +129,7 @@ func (a *ALU) Run() error {
 				a.resultOut <- result
 
 			// set if less then (unsigned): sltu, sltiu
-			case isa.Sltu.Functs, isa.Sltiu.Functs:
+			case Operations.Sltu:
 				var result uint32
 				if data1 < data2 {
 					result = 1
@@ -85,39 +137,39 @@ func (a *ALU) Run() error {
 				a.resultOut <- result
 
 			// or, ori
-			case isa.Or.Functs, isa.Ori.Functs:
+			case Operations.Xor:
 				a.resultOut <- data1 ^ data2
 
 			// shift right logical: srl, srli
-			case isa.Srl.Functs, isa.Srli.Functs:
+			case Operations.Srl:
 				a.resultOut <- data1 >> data2
 
 			// shift right arithmetic: sra, srai
-			case isa.Sra.Functs, isa.Srai.Functs:
+			case Operations.Sra:
 				a.resultOut <- uint32(int32(data1) >> data2)
 
 			// or, ori
-			case isa.Or.Functs, isa.Ori.Functs:
+			case Operations.Or:
 				a.resultOut <- data1 | data2
 
 			// and, andi
-			case isa.And.Functs, isa.Andi.Functs:
+			case Operations.And:
 				a.resultOut <- data1 & data2
 
 			// mul
-			case isa.Mul.Functs:
+			case Operations.Mul:
 				a.resultOut <- data1 * data2
-			case isa.Mulh.Functs:
+			case Operations.Mulh:
 				a.resultOut <- mulh(data1, data2)
-			case isa.Mulhsu.Functs:
+			case Operations.Mulhsu:
 				a.resultOut <- mulhsu(data1, data2)
-			case isa.Mulhu.Functs:
+			case Operations.Mulhu:
 				a.resultOut <- mulhu(data1, data2)
 
-			case isa.Div.Functs:
-			case isa.Divu.Functs:
-			case isa.Rem.Functs:
-			case isa.Remu.Functs:
+			case Operations.Div:
+			case Operations.Divu:
+			case Operations.Rem:
+			case Operations.Remu:
 			}
 
 		}

@@ -29,7 +29,6 @@ func decodeR(i isa.Inst) *isa.RFields {
 //   fn7     Shift RD1   fn3 RS    OPCODE
 //   0000000_00010_00001_000_00101_0110011
 func decodeRI(i isa.Inst) *isa.RIFields {
-	//TODO Finish decode RI
 	fields := isa.NewRIFields()
 	fields.Opcode = i & 0x7F
 	fields.Rd = (i >> 7) & 0x1F

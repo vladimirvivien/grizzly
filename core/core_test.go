@@ -16,7 +16,32 @@ func TestCore(t *testing.T) {
 		eval      func(*testing.T, *Core, chan struct{})
 	}{
 		{
-			name: "addition",
+			name: "single R instruction",
+			core: func(t *testing.T) *Core {
+				cor := newCore()
+				regfile := cor.reg.(*reg.RegisterFile)
+				regfile.SideLoad(0b00001, 4)
+				regfile.SideLoad(0b00010, 7)
+				return cor
+			},
+			instructs: func(t *testing.T) device.WiresOut {
+				datapath := make(device.Wires)
+				go func() {
+					datapath <- 0b0000000_00010_00001_000_00101_0110011 // add  reg[5] <= reg[1], reg[2]
+				}()
+				return datapath
+			},
+			eval: func(t *testing.T, cor *Core, waiter chan struct{}) {
+				defer close(waiter)
+				regfile := cor.reg.(*reg.RegisterFile)
+				rd5 := regfile.Probe(0b00101)
+				if rd5 != 11 {
+					t.Fatalf("unexpected result for add: reg[5], reg[1], reg[2]: %b", rd5)
+				}
+			},
+		},
+		{
+			name: "multiple R instructions",
 			core: func(t *testing.T) *Core {
 				cor := newCore()
 				regfile := cor.reg.(*reg.RegisterFile)
@@ -28,8 +53,8 @@ func TestCore(t *testing.T) {
 			instructs: func(t *testing.T) device.WiresOut {
 				datapath := make(device.Wires)
 				go func() {
-					datapath <- 0b0000000_00010_00001_000_00101_0110011 // add reg[5], reg[1], reg[2]
-					datapath <- 0b0000000_01001_00101_000_00011_0110011 // add reg[3], reg[5], reg[9]
+					datapath <- 0b0000000_00010_00001_000_00101_0110011 // add  reg[5] <= reg[1], reg[2]
+					datapath <- 0b0000000_01001_00101_000_00011_0110011 // add  reg[3] <= reg[5], reg[9]
 				}()
 				return datapath
 			},
@@ -43,6 +68,59 @@ func TestCore(t *testing.T) {
 				rd3 := regfile.Probe(0b00011)
 				if rd3 != 23 {
 					t.Fatalf("Unexpected result for add: reg[3], reg[5], reg[9] : %b", rd3)
+				}
+			},
+		},
+		{
+			name: "single RI add",
+			core: func(t *testing.T) *Core {
+				cor := newCore()
+				regfile := cor.reg.(*reg.RegisterFile)
+				regfile.SideLoad(0b00001, 4)
+				return cor
+			},
+			instructs: func(t *testing.T) device.WiresOut {
+				datapath := make(device.Wires)
+				go func() {
+					datapath <- 0b000000000010_00001_000_00101_0010011 // addi reg[5] <= 2, reg[1]
+				}()
+				return datapath
+			},
+			eval: func(t *testing.T, cor *Core, waiter chan struct{}) {
+				defer close(waiter)
+				regfile := cor.reg.(*reg.RegisterFile)
+				rd5 := regfile.Probe(0b00101)
+				if rd5 != 6 {
+					t.Fatalf("unexpected result for addi: reg[5] <= 2, reg[1]: %d", rd5)
+				}
+			},
+		},
+		{
+			name: "multiple RI",
+			core: func(t *testing.T) *Core {
+				cor := newCore()
+				regfile := cor.reg.(*reg.RegisterFile)
+				regfile.SideLoad(0b00001, 4)
+				return cor
+			},
+			instructs: func(t *testing.T) device.WiresOut {
+				datapath := make(device.Wires)
+				go func() {
+					datapath <- 0b000000000010_00001_000_00101_0010011 // addi reg[5] <= 2, reg[1]
+					datapath <- 0b0000000_0001_00101_001_00110_0010011 // slli reg[6] <= 1, reg[5]
+				}()
+				return datapath
+			},
+			eval: func(t *testing.T, cor *Core, waiter chan struct{}) {
+				defer close(waiter)
+				regfile := cor.reg.(*reg.RegisterFile)
+				rd5 := regfile.Probe(0b00101)
+				if rd5 != 6 {
+					t.Fatalf("unexpected result for addi: reg[5] <= 2, reg[1]: %d", rd5)
+				}
+				rd6 := regfile.Probe(0b00110)
+				if rd6 != 12 {
+					t.Fatalf("unexpected result for slli: reg[6] <= 1, reg[5]: %d", rd5)
 				}
 			},
 		},
@@ -68,7 +146,7 @@ func TestCore(t *testing.T) {
 
 			select {
 			case <-wait:
-			case <-time.After(5 * time.Millisecond):
+			case <-time.After(200 * time.Millisecond):
 				t.Fatalf("Control unit operation %s took too long", test.name)
 			}
 		})

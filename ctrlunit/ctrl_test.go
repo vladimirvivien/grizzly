@@ -21,15 +21,33 @@ func TestController(t *testing.T) {
 		{
 			name: "R format",
 			inst: func() isa.Inst { return 0b0000000_00010_00001_000_00101_0110011 },
-			eval: func(rs1, rs2, functs, werf, rd uint32) {
+			eval: func(rd, rs1, rs2, functs, werf uint32) {
 				if functs != isa.Add.Functs {
-					t.Errorf("Unexpected Functs value: %b", functs)
+					t.Errorf("Unexpected Operation value: %b", functs)
 				}
 				if rs1 != 0b00001 {
 					t.Errorf("Unexpected rs1 value: %b", rs1)
 				}
 				if rs2 != 0b00010 {
 					t.Errorf("Unexpected rs2 value: %b", rs2)
+				}
+				if rd != 0b00101 {
+					t.Errorf("Unexpected rd value: %b", rd)
+				}
+				if werf != 1 {
+					t.Error("Unexpedted WERF value")
+				}
+			},
+		},
+		{
+			name: "RI format",
+			inst: func() isa.Inst { return 0b000000000010_00001_000_00101_0010011 },
+			eval: func(rd, rs1, rs2, functs, werf uint32) {
+				if functs != isa.Addi.Functs {
+					t.Errorf("Unexpected Operation value: %b", functs)
+				}
+				if rs1 != 0b00001 {
+					t.Errorf("Unexpected rs1 value: %b", rs1)
 				}
 				if rd != 0b00101 {
 					t.Errorf("Unexpected rd value: %b", rd)
@@ -56,11 +74,11 @@ func TestController(t *testing.T) {
 			go func() {
 				defer close(wait)
 				test.eval(
+					<-ctrl.GetPin(Out.RD),
 					<-ctrl.GetPin(Out.RS1),
 					<-ctrl.GetPin(Out.RS2),
 					<-ctrl.GetPin(Out.Functs),
 					<-ctrl.GetPin(Out.Werf),
-					<-ctrl.GetPin(Out.RD),
 				)
 			}()
 

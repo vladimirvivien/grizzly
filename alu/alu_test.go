@@ -3,8 +3,6 @@ package alu
 import (
 	"testing"
 	"time"
-
-	"github.com/vladimirvivien/grizzly/isa"
 )
 
 func TestALUROps(t *testing.T) {
@@ -23,13 +21,13 @@ func TestALUROps(t *testing.T) {
 			name:     "add-pos-pos",
 			operands: func() (uint32, uint32) { return 0x2, 0x5 },
 			expected: func() uint32 { return 0x7 },
-			aluOp:    isa.Add.Functs,
+			aluOp:    Operations.Add,
 		},
 		{
 			name:     "add-pos-neg",
 			operands: func() (uint32, uint32) { return 0x2, 0b11111111_11111111_11111111_11111001 },
 			expected: func() uint32 { return uint32(0b11111111_11111111_11111111_11111011) },
-			aluOp:    isa.Add.Functs,
+			aluOp:    Operations.Add,
 		},
 		{
 			name: "add-neg-neg",
@@ -37,43 +35,43 @@ func TestALUROps(t *testing.T) {
 				return 0b11111111_11111111_11111111_11111001, 0b11111111_11111111_11111111_11111011
 			},
 			expected: func() uint32 { return uint32(0b11111111_11111111_11111111_11110100) },
-			aluOp:    isa.Add.Functs,
+			aluOp:    Operations.Add,
 		},
 		{
 			name:     "sub",
 			operands: func() (uint32, uint32) { return 0x7, 0x3 },
 			expected: func() uint32 { return 0x4 },
-			aluOp:    isa.Sub.Functs,
+			aluOp:    Operations.Sub,
 		},
 		{
 			name:     "sll",
 			operands: func() (uint32, uint32) { return 0x2, 0x2 },
 			expected: func() uint32 { return 0x8 },
-			aluOp:    isa.Sll.Functs,
+			aluOp:    Operations.Sll,
 		},
 		{
 			name:     "slt-true", // true
 			operands: func() (uint32, uint32) { return 0x4, 0x1C },
 			expected: func() uint32 { return 0x1 },
-			aluOp:    isa.Slt.Functs,
+			aluOp:   Operations.Slt,
 		},
 		{
 			name:     "slt-false", // false
 			operands: func() (uint32, uint32) { return 0x1C, 0x10 },
 			expected: func() uint32 { return 0x0 },
-			aluOp:    isa.Slt.Functs,
+			aluOp:    Operations.Slt,
 		},
 		{
 			name:     "sltu-true",
 			operands: func() (uint32, uint32) { return 0x1C, 0xFF },
 			expected: func() uint32 { return 0x1 },
-			aluOp:    isa.Sltu.Functs,
+			aluOp:    Operations.Sltu,
 		},
 		{
 			name:     "sltu-false",
 			operands: func() (uint32, uint32) { return 0x1C, 0x10 },
 			expected: func() uint32 { return 0x0 },
-			aluOp:    isa.Sltu.Functs,
+			aluOp:    Operations.Sltu,
 		},
 
 		// ***** Multiplication Tests *******
@@ -82,13 +80,13 @@ func TestALUROps(t *testing.T) {
 			name:     "mul-pos-pos",
 			operands: func() (uint32, uint32) { return 0x2, 0x5 },
 			expected: func() uint32 { return 0xA },
-			aluOp:    isa.Mul.Functs,
+			aluOp:    Operations.Mul,
 		},
 		{
 			name:     "mul-pos-neg",
 			operands: func() (uint32, uint32) { return 0x2, 0b11111111_11111111_11111111_11111011 },
 			expected: func() uint32 { return 0b11111111_11111111_11111111_11110110 },
-			aluOp:    isa.Mul.Functs,
+			aluOp:    Operations.Mul,
 		},
 		{
 			name: "mul-neg-neg",
@@ -96,7 +94,7 @@ func TestALUROps(t *testing.T) {
 				return 0b11111111_11111111_11111111_11111110, 0b11111111_11111111_11111111_11111011
 			},
 			expected: func() uint32 { return 0xA },
-			aluOp:    isa.Mul.Functs,
+			aluOp:    Operations.Mul,
 		},
 
 		// Mulh
@@ -104,19 +102,19 @@ func TestALUROps(t *testing.T) {
 			name:     "mulh-pos-pos small",
 			operands: func() (uint32, uint32) { return 0x2, 0x5 },
 			expected: func() uint32 { return 0 },
-			aluOp:    isa.Mulh.Functs,
+			aluOp:    Operations.Mulh,
 		},
 		{
 			name:     "mulh-pos-pos large",
 			operands: func() (uint32, uint32) { return 1100200, 1200300 },
 			expected: func() uint32 { return 307 },
-			aluOp:    isa.Mulh.Functs,
+			aluOp:    Operations.Mulh,
 		},
 		{
 			name:     "mulh-pos-neg large",
 			operands: func() (uint32, uint32) { return 1100200, 0b11111111_11101101_10101111_01010100 },
 			expected: func() uint32 { return 0b100001100100001110100 },
-			aluOp:    isa.Mulh.Functs,
+			aluOp:    Operations.Mulh,
 		},
 		{
 			name: "mulh-neg-neg large",
@@ -124,7 +122,7 @@ func TestALUROps(t *testing.T) {
 				return 0b11111111_11101111_00110110_01011000, 0b11111111_11101101_10101111_01010100
 			},
 			expected: func() uint32 { return 0b11111111110111001110011011011111 },
-			aluOp:    isa.Mulh.Functs,
+			aluOp:    Operations.Mulh,
 		},
 
 		// Mulhsu
@@ -132,19 +130,19 @@ func TestALUROps(t *testing.T) {
 			name:     "mulhsu-pos-pos small",
 			operands: func() (uint32, uint32) { return 0x2, 0x5 },
 			expected: func() uint32 { return 0 },
-			aluOp:    isa.Mulhsu.Functs,
+			aluOp:    Operations.Mulhsu,
 		},
 		{
 			name:     "mulhsu-pos-pos large",
 			operands: func() (uint32, uint32) { return 1100200, 1200300 },
 			expected: func() uint32 { return 307 },
-			aluOp:    isa.Mulhsu.Functs,
+			aluOp:    Operations.Mulhsu,
 		},
 		{
 			name:     "mulhsu-pos-neg large",
 			operands: func() (uint32, uint32) { return 1100200, 0b11111111_11101101_10101111_01010100 },
 			expected: func() uint32 { return 0b100001100100001110100 },
-			aluOp:    isa.Mulhsu.Functs,
+			aluOp:    Operations.Mulhsu,
 		},
 		{
 			name: "mulhsu-neg-neg large",
@@ -152,7 +150,7 @@ func TestALUROps(t *testing.T) {
 				return 0b11111111_11101111_00110110_01011000, 0b11111111_11101101_10101111_01010100
 			},
 			expected: func() uint32 { return 0b11111111111011110011011110001011 },
-			aluOp:    isa.Mulhsu.Functs,
+			aluOp:    Operations.Mulhsu,
 		},
 
 		// Mulhu
@@ -160,19 +158,19 @@ func TestALUROps(t *testing.T) {
 			name:     "mulhu-pos-pos small",
 			operands: func() (uint32, uint32) { return 0x2, 0x5 },
 			expected: func() uint32 { return 0 },
-			aluOp:    isa.Mulhu.Functs,
+			aluOp:    Operations.Mulhu,
 		},
 		{
 			name:     "mulhu-pos-pos large",
 			operands: func() (uint32, uint32) { return 1100200, 1200300 },
 			expected: func() uint32 { return 307 },
-			aluOp:    isa.Mulhu.Functs,
+			aluOp:    Operations.Mulhu,
 		},
 		{
 			name:     "mulhu-pos-neg large",
 			operands: func() (uint32, uint32) { return 1100200, 0b11111111_11101101_10101111_01010100 },
 			expected: func() uint32 { return 0b100001100100001110100 },
-			aluOp:    isa.Mulhu.Functs,
+			aluOp:    Operations.Mulhu,
 		},
 		{
 			name: "mulhu-neg-neg large",
@@ -180,7 +178,7 @@ func TestALUROps(t *testing.T) {
 				return 0b11111111_11101111_00110110_01011000, 0b11111111_11101101_10101111_01010100
 			},
 			expected: func() uint32 { return 0b11111111110111001110011011011111 },
-			aluOp:    isa.Mulhu.Functs,
+			aluOp:    Operations.Mulhu,
 		},
 	}
 
@@ -189,7 +187,7 @@ func TestALUROps(t *testing.T) {
 	// wire ports
 	alu.SetPin(In.Operand1, d1wires)
 	alu.SetPin(In.Operand2, d2wires)
-	alu.SetPin(In.Functs, opwires)
+	alu.SetPin(In.Operation, opwires)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

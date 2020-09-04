@@ -85,12 +85,9 @@ func (r *RegisterFile) Run() error {
 
 	// wePin - receives write-enable signal
 	// write operation blocks until it is received
-	werfPin := r.GetPin(In.Werf)
 	dataPin := r.GetPin(In.Data)
 	dataAddrPin := r.GetPin(In.RDAddr)
-
-	// TODO:
-	// Update tests to use sequence below:
+	werfPin := r.GetPin(In.Werf)
 
 	// write loop sequence:
 	// 1. writeEnale
@@ -101,8 +98,8 @@ func (r *RegisterFile) Run() error {
 		for {
 			select {
 			case <-werfPin:
-				data := <-dataPin
 				addr := <-dataAddrPin
+				data := <-dataPin
 				r.write(addr, data)
 				// signal write ready
 				go func() {
@@ -118,6 +115,9 @@ func (r *RegisterFile) Run() error {
 func (r *RegisterFile) read(addr uint32) uint32 {
 	r.RLock()
 	defer r.RUnlock()
+	if addr == 0 {
+		return 0
+	}
 	return r.file[addr]
 }
 

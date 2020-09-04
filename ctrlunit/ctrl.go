@@ -18,26 +18,38 @@ var (
 		RS1    device.PinLabel
 		RS2    device.PinLabel
 		RD     device.PinLabel
+		Imm    device.PinLabel
 		Functs device.PinLabel
 		Werf   device.PinLabel
 	}{
 		RS1:    "ctrlunit.rs1.out",
 		RS2:    "ctrlunit.rs2.out",
 		RD:     "ctrlunit.rd.out",
+		Imm:    "ctrlunit.imm.out",
 		Functs: "ctrlunit.functs.out",
 		Werf:   "ctrlunit.werf.out",
 	}
 )
 
+// Controller encodes the logic for the control unit
+// It decodes the instruction and orchestrate the operation
+// on the data using ALU, register file, etc.
+
+// Data order: data is output on the following sequence:
+// data path: rdOut, rs1, rs2,
+// control path: pathfuncts, and werf
+// If not read in that order, races will be created.
 type Controller struct {
 	*device.Base
+	rdOut     device.Wires
 	rs1Out    device.Wires
 	rs2Out    device.Wires
-	rdOut     device.Wires
-	werf      device.Wires
+	imm       device.Wires
 	functsOut device.Wires
+	werf      device.Wires
 }
 
+// New creates a new *Controler
 func New() device.Type {
 	return newCtrl()
 }
@@ -45,16 +57,18 @@ func New() device.Type {
 func newCtrl() *Controller {
 	c := &Controller{
 		Base:      device.NewBase(),
-		functsOut: device.MakeWires(),
+		rdOut:     device.MakeWires(),
 		rs1Out:    device.MakeWires(),
 		rs2Out:    device.MakeWires(),
-		rdOut:     device.MakeWires(),
+		imm:       device.MakeWires(),
+		functsOut: device.MakeWires(),
 		werf:      device.MakeWires(),
 	}
-	c.SetPin(Out.Functs, c.functsOut)
+	c.SetPin(Out.RD, c.rdOut)
 	c.SetPin(Out.RS1, c.rs1Out)
 	c.SetPin(Out.RS2, c.rs2Out)
-	c.SetPin(Out.RD, c.rdOut)
+	c.SetPin(Out.Imm, c.imm)
+	c.SetPin(Out.Functs, c.functsOut)
 	c.SetPin(Out.Werf, c.werf)
 
 	return c
@@ -64,10 +78,10 @@ func (c *Controller) Run() error {
 	fmt.Println("Controller started")
 	go func() {
 		defer func() {
-			close(c.functsOut)
+			close(c.rdOut)
 			close(c.rs1Out)
 			close(c.rs2Out)
-			close(c.rdOut)
+			close(c.functsOut)
 			close(c.werf)
 		}()
 
@@ -78,37 +92,43 @@ func (c *Controller) Run() error {
 			switch opcode {
 			case isa.Opcodes.R:
 				// R-format:
-				// decodes instructions
-				// Sends address RS1, RS2, WERF to regfile
-				// Send functs to ALU
-				// ALU op result stored regfile[RD]
 				fields := decodeR(inst)
-				c.rs1Out <- fields.Rs1
-				c.rs2Out <- fields.Rs2
-				c.functsOut <- fields.Functs()
-				c.werf <- 1 // TODO change to bit type
-				c.rdOut <- fields.Rd
-
+				go func() {
+					c.rdOut <- fields.Rd
+					c.rs1Out <- fields.Rs1
+					c.rs2Out <- fields.Rs2
+				}()
+				go func() {
+					c.werf <- 1
+				}()
+				go func() {
+					c.functsOut <- fields.Functs()
+				}()
 			case isa.Opcodes.RI:
-				// RI-format (register immediate)
-				// Sends sign-extnd value of 12-bit MSB from ins to ALU
-				// Sends R1, WERF to Refile
-				// ALU op result stored in regfile[RD]
+				// RI-format (register immediate):
 				fields := decodeRI(inst)
-				c.rs1Out <- fields.Rs1
 
-				// select Imm value or shift amout
-				switch fields.Funct3 {
-				case 0b001, 0b101:
-					c.rs2Out <- fields.Shift
-					c.functsOut <- fields.Funct7
-				default:
-					c.rs2Out <- fields.Imm
-				}
+				go func() {
+					c.rdOut <- fields.Rd
+					c.rs1Out <- fields.Rs1
 
-				c.werf <- 1
-				c.rdOut <- fields.Rd
+					// select Imm value or shift amout
+					switch fields.Funct3 {
+					case 0b001, 0b101:
+						c.imm <- fields.Shift
+					default:
+						c.imm <- fields.Imm
+					}
 
+				}()
+
+				go func() {
+					c.functsOut <- isa.Functs(fields.Funct7, fields.Funct3)
+				}()
+
+				go func() {
+					c.werf <- 1
+				}()
 			default:
 				panic(fmt.Sprintf("unsupported opcode: %0b", opcode))
 			}

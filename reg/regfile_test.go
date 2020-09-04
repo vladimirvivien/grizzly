@@ -43,11 +43,10 @@ func TestRegisterFile(t *testing.T) {
 					rs2wire <- 0x4
 
 					//write data
-					// data must always be specified before rd
-					// or risk deadlock
+					// be mindful of order of rd and rdData.
 					wenable <- 1
-					datawire <- 0xCAFE
 					rdwire <- 0x05
+					datawire <- 0xCAFE
 					rs2wire <- 0x5 // read the data
 
 					rs1wire <- 0x7
