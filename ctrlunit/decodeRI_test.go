@@ -9,7 +9,7 @@ import (
 // TestDecodeRI tests register immediate instructions
 //
 // Immediate ops
-// imm[32:20]   RS1   fn3 RD    OPCODE
+// immOut[32:20]   RS1   fn3 RD    OPCODE
 // 000000000010_00001_000_00101_0110011
 //
 // Shift ops

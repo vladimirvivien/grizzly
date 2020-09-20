@@ -1,12 +1,22 @@
 package device
 
-/*
-Selectors work similarly as do a multiplexer, however, without a select line.
-They are constructed using two or more Pins (Go channels) as input.
-Initially, all receive operations are blocked until a Pin receives a
-value.  The selector will automatically select and return the received
-value on its output Pin and then blocked until the next value.
- */
+func Mux(selPin Pin, inPins...Pin) Pin {
+	output := MakeWires()
+	go func(){
+		defer close(output)
+		for {
+			var value uint32
+			select{
+			case sel := <-selPin:
+				select {
+				case value = <-inPins[sel]:
+					output <- value
+				}
+			}
+		}
+	}()
+	return output
+}
 
 // Select2 builds a selector with two input pins
 func Select2(in0, in1 Pin) Pin {

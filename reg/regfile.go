@@ -2,7 +2,6 @@ package reg
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/vladimirvivien/grizzly/device"
 )
@@ -36,8 +35,6 @@ type RegisterFile struct {
 	file       []uint32
 	rs1DataOut device.Wires
 	rs2DataOut device.Wires
-	wready     device.Wires
-	sync.RWMutex
 }
 
 func New() device.Type {
@@ -49,7 +46,6 @@ func newRegister() *RegisterFile {
 		file:       make([]uint32, 32, 32),
 		rs1DataOut: device.MakeWires(),
 		rs2DataOut: device.MakeWires(),
-		wready:     device.MakeWires(),
 		Base:       device.NewBase(),
 	}
 
@@ -83,7 +79,7 @@ func (r *RegisterFile) Run() error {
 		}
 	}()
 
-	// wePin - receives write-enable signal
+
 	// write operation blocks until it is received
 	dataPin := r.GetPin(In.Data)
 	dataAddrPin := r.GetPin(In.RDAddr)
@@ -94,17 +90,12 @@ func (r *RegisterFile) Run() error {
 	// 2. RD Data
 	// 3. RD Addr
 	go func() {
-		defer close(r.wready)
 		for {
 			select {
 			case <-werfPin:
 				addr := <-dataAddrPin
 				data := <-dataPin
 				r.write(addr, data)
-				// signal write ready
-				go func() {
-					r.wready <- 1
-				}()
 			}
 		}
 	}()
@@ -130,22 +121,21 @@ func (r *RegisterFile) write(addr uint32, data uint32) {
 	r.file[addr] = data
 }
 
-// Probe is a test-only method that blocks until wready
-// then reads the specified address
-// if wready is triggered by a previous write, this blocks
-// indefinitely
+// Probe is a TEST-ONLY method that is used to read
+// values from register address directly.
 func (r *RegisterFile) Probe(addr uint32) uint32 {
-	<-r.wready
 	return r.read(addr)
 }
 
-// SideLoad is test-only method used to load values directly into reg
+// SideLoad is TEST-ONLY method used to load values directly into reg
 func (r *RegisterFile) SideLoad(addr uint32, val uint32) {
 	r.write(addr, val)
 }
 
 func (r *RegisterFile) Print() {
+	fmt.Println()
 	for i, v := range r.file {
-		fmt.Printf("file[%x] = %b\n", i, v)
+		fmt.Printf("reg[%d]=%d;", i, v)
 	}
+	fmt.Println()
 }

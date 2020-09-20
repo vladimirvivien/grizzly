@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	Operations = struct {
+	Ops = struct {
 		Add  uint32
 		And  uint32
 		Sub  uint32
@@ -109,19 +109,19 @@ func (a *ALU) Run() error {
 
 			switch op {
 			// addition: add, addi
-			case Operations.Add:
+			case Ops.Add:
 				a.resultOut <- data1 + data2
 
 			// sub
-			case Operations.Sub:
+			case Ops.Sub:
 				a.resultOut <- data1 - data2
 
 			// shift logical left: sll, slli
-			case Operations.Sll:
+			case Ops.Sll:
 				a.resultOut <- data1 << data2
 
 			// set if less then (signed): slt, slti
-			case Operations.Slt:
+			case Ops.Slt:
 				var result uint32
 				if int32(data1) < int32(data2) {
 					result = 1
@@ -129,7 +129,7 @@ func (a *ALU) Run() error {
 				a.resultOut <- result
 
 			// set if less then (unsigned): sltu, sltiu
-			case Operations.Sltu:
+			case Ops.Sltu:
 				var result uint32
 				if data1 < data2 {
 					result = 1
@@ -137,39 +137,39 @@ func (a *ALU) Run() error {
 				a.resultOut <- result
 
 			// or, ori
-			case Operations.Xor:
+			case Ops.Xor:
 				a.resultOut <- data1 ^ data2
 
 			// shift right logical: srl, srli
-			case Operations.Srl:
+			case Ops.Srl:
 				a.resultOut <- data1 >> data2
 
 			// shift right arithmetic: sra, srai
-			case Operations.Sra:
+			case Ops.Sra:
 				a.resultOut <- uint32(int32(data1) >> data2)
 
 			// or, ori
-			case Operations.Or:
+			case Ops.Or:
 				a.resultOut <- data1 | data2
 
 			// and, andi
-			case Operations.And:
+			case Ops.And:
 				a.resultOut <- data1 & data2
 
 			// mul
-			case Operations.Mul:
+			case Ops.Mul:
 				a.resultOut <- data1 * data2
-			case Operations.Mulh:
+			case Ops.Mulh:
 				a.resultOut <- mulh(data1, data2)
-			case Operations.Mulhsu:
+			case Ops.Mulhsu:
 				a.resultOut <- mulhsu(data1, data2)
-			case Operations.Mulhu:
+			case Ops.Mulhu:
 				a.resultOut <- mulhu(data1, data2)
 
-			case Operations.Div:
-			case Operations.Divu:
-			case Operations.Rem:
-			case Operations.Remu:
+			case Ops.Div:
+			case Ops.Divu:
+			case Ops.Rem:
+			case Ops.Remu:
 			}
 
 		}

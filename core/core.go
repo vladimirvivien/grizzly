@@ -60,10 +60,13 @@ func (c *Core) wireComponents() error {
 	c.reg.SetPin(reg.In.Werf, c.ctrl.GetPin(ctrlunit.Out.Werf))
 
 	// wire alu
-	c.alu.SetPin(alu.In.Operation, c.ctrl.GetPin(ctrlunit.Out.Functs))
+	c.alu.SetPin(alu.In.Operation, c.ctrl.GetPin(ctrlunit.Out.ALUOp))
 	c.alu.SetPin(alu.In.Operand1, c.reg.GetPin(reg.Out.RS1Data))
-	c.alu.SetPin(alu.In.Operand2, c.reg.GetPin(reg.Out.RS2Data))
-	c.alu.SetPin(alu.In.Operand2, device.Select2(c.reg.GetPin(reg.Out.RS2Data), c.ctrl.GetPin(ctrlunit.Out.Imm)))
+	c.alu.SetPin(alu.In.Operand2, device.Mux(
+		c.ctrl.GetPin(ctrlunit.Out.ALUSrc),
+		c.reg.GetPin(reg.Out.RS2Data),
+		c.ctrl.GetPin(ctrlunit.Out.Imm),
+	))
 	c.reg.SetPin(reg.In.Data, c.alu.GetPin(alu.Out.Result))
 
 	return nil

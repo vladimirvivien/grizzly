@@ -4,11 +4,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vladimirvivien/grizzly/alu"
 	"github.com/vladimirvivien/grizzly/device"
 	"github.com/vladimirvivien/grizzly/isa"
 )
 
-func TestController(t *testing.T) {
+func TestCtrl_I(t *testing.T) {
 	instructions := device.MakeWires()
 	ctrl := newCtrl()
 	ctrl.SetPin(In.Insts, instructions)
@@ -16,14 +17,14 @@ func TestController(t *testing.T) {
 	tests := []struct {
 		name string
 		inst func() isa.Inst
-		eval func(uint32, uint32, uint32, uint32, uint32)
+		eval func(rd uint32, rs1 uint32, rs2 uint32, aluOp uint32, werf uint32)
 	}{
 		{
-			name: "R format",
+			name: "R format (add)",
 			inst: func() isa.Inst { return 0b0000000_00010_00001_000_00101_0110011 },
-			eval: func(rd, rs1, rs2, functs, werf uint32) {
-				if functs != isa.Add.Functs {
-					t.Errorf("Unexpected Operation value: %b", functs)
+			eval: func(rd, rs1, rs2, aluOp, werf uint32) {
+				if aluOp != alu.Ops.Add {
+					t.Errorf("Unexpected Operation value: %b", aluOp)
 				}
 				if rs1 != 0b00001 {
 					t.Errorf("Unexpected rs1 value: %b", rs1)
@@ -39,12 +40,56 @@ func TestController(t *testing.T) {
 				}
 			},
 		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			wait := make(chan struct{})
+
+			go func() {
+				instructions <- test.inst()
+			}()
+
+			if err := ctrl.Run(); err != nil {
+				t.Fatal(err)
+			}
+
+			go func() {
+				defer close(wait)
+				test.eval(
+					<-ctrl.GetPin(Out.RD),
+					<-ctrl.GetPin(Out.RS1),
+					<-ctrl.GetPin(Out.RS2),
+					<-ctrl.GetPin(Out.ALUOp),
+					<-ctrl.GetPin(Out.Werf),
+				)
+			}()
+
+			select {
+			case <-wait:
+			case <-time.After(5 * time.Millisecond):
+				t.Fatalf("Control unit operation %s took too long", test.name)
+			}
+		})
+	}
+}
+
+func TestCtrl_RI(t *testing.T) {
+	instructions := device.MakeWires()
+	ctrl := newCtrl()
+	ctrl.SetPin(In.Insts, instructions)
+
+	tests := []struct {
+		name string
+		inst func() isa.Inst
+		eval func(rd uint32, rs1 uint32, imm uint32, aluOp uint32, werf uint32)
+	}{
 		{
-			name: "RI format",
+			name: "RI format (addi)",
 			inst: func() isa.Inst { return 0b000000000010_00001_000_00101_0010011 },
-			eval: func(rd, rs1, rs2, functs, werf uint32) {
-				if functs != isa.Addi.Functs {
-					t.Errorf("Unexpected Operation value: %b", functs)
+			eval: func(rd, rs1, imm, aluOp, werf uint32) {
+				if aluOp != alu.Ops.Add {
+					t.Errorf("Unexpected Operation value: %b", aluOp)
 				}
 				if rs1 != 0b00001 {
 					t.Errorf("Unexpected rs1 value: %b", rs1)
@@ -76,8 +121,8 @@ func TestController(t *testing.T) {
 				test.eval(
 					<-ctrl.GetPin(Out.RD),
 					<-ctrl.GetPin(Out.RS1),
-					<-ctrl.GetPin(Out.RS2),
-					<-ctrl.GetPin(Out.Functs),
+					<-ctrl.GetPin(Out.Imm),
+					<-ctrl.GetPin(Out.ALUOp),
 					<-ctrl.GetPin(Out.Werf),
 				)
 			}()
@@ -89,5 +134,4 @@ func TestController(t *testing.T) {
 			}
 		})
 	}
-
 }
