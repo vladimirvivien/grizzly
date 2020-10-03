@@ -3,6 +3,8 @@ package reg
 import (
 	"testing"
 	"time"
+
+	"github.com/vladimirvivien/grizzly/device"
 )
 
 func TestRegisterFile(t *testing.T) {
@@ -26,11 +28,11 @@ func TestRegisterFile(t *testing.T) {
 		{
 			name: "test rs values",
 			rslines: func() (rs1, rs2, data, rd, werf <-chan uint32) {
-				rs1wire := make(chan uint32)
-				rs2wire := make(chan uint32)
-				datawire := make(chan uint32)
-				rdwire := make(chan uint32)
-				wenable := make(chan uint32)
+				rs1wire := device.MakeWires()
+				rs2wire := device.MakeWires()
+				datawire := device.MakeWires()
+				rdwire := device.MakeWires()
+				wenable := device.MakeWires()
 				go func() {
 					defer func() {
 						close(rs1wire)
@@ -55,7 +57,6 @@ func TestRegisterFile(t *testing.T) {
 				return rs1wire, rs2wire, datawire, rdwire, wenable
 			},
 			evalrs: func(t *testing.T, rf *RegisterFile) {
-				//rf.Enable()
 				rs1 := <-rf.GetPin(Out.RS1Data)
 				if rs1 != 0x0 {
 					t.Errorf("Unexpected RS1 data %d", rs1)

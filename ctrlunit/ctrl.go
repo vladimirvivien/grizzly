@@ -2,7 +2,6 @@ package ctrlunit
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/vladimirvivien/grizzly/device"
 	"github.com/vladimirvivien/grizzly/isa"
@@ -10,11 +9,9 @@ import (
 
 var (
 	In = struct {
-		Insts   device.PinLabel
-		Disable device.PinLabel
+		Insts device.PinLabel
 	}{
-		Insts:   "ctrlunit.instructions.in",
-		Disable: "ctrlunit.disable.in",
+		Insts: "ctrlunit.instructions.in",
 	}
 
 	Out = struct {
@@ -93,84 +90,44 @@ func (c *Controller) Run() error {
 			close(c.werfOut)
 		}()
 
+		insts := c.GetPin(In.Insts)
+
 		for {
 			select {
-			case delay := <-c.GetPin(In.Disable):
-				// this is for TEST-ONLY
-				// It stalls for delay (micro sec) time to allow
-				// inflight instructions to complete.
-				// Then close all channels.
-				time.Sleep(time.Duration(delay) * time.Microsecond)
-				fmt.Printf("Disabling Ctrl after %d microsec ", delay)
-				return
-			case inst, valid := <-c.GetPin(In.Insts):
-				if !valid {
-					// this should never happen
-					panic("controller: instruction channel is closed")
-				}
+			case inst := <-insts:
 				opcode := inst & 0x7F
-
 				switch opcode {
 				case isa.Opcodes.R:
-					// R-format:
 					fields := decodeR(inst)
 
-					go func() {
-						c.rs1Out <- fields.Rs1
-					}()
+					// controls
+					c.werfOut <- 1
+					c.aluOpOut <- encodeAluOp(fields.Functs())
+					c.aluSrcOut <- 0
 
-					go func() {
-						c.rs2Out <- fields.Rs2
-					}()
+					// data path sent in order rs1,rs2,rd
+					c.rs1Out <- fields.Rs1
+					c.rs2Out <- fields.Rs2
+					c.rdOut <- fields.Rd
 
-					go func() {
-						c.rdOut <- fields.Rd
-					}()
-
-					go func() {
-						c.werfOut <- 1
-					}()
-
-					go func() {
-						c.aluOpOut <- encodeAluOp(fields.Functs())
-					}()
-
-					go func() {
-						c.aluSrcOut <- 0
-					}()
 				case isa.Opcodes.RI:
-					// RI-format (register immediate):
 					fields := decodeRI(inst)
 
-					go func() {
-						c.rdOut <- fields.Rd
-					}()
+					// controls
+					c.werfOut <- 1
+					c.aluOpOut <- encodeAluOp(fields.Functs())
+					c.aluSrcOut <- 1
 
-					go func() {
-						c.rs1Out <- fields.Rs1
-					}()
+					// data path order: rs1, imm, rd
+					c.rs1Out <- fields.Rs1
+					switch fields.Funct3 {
+					case 0b001, 0b101:
+						c.immOut <- fields.Shift
+					default:
+						c.immOut <- fields.Imm
+					}
+					c.rdOut <- fields.Rd
 
-					go func() {
-						// select Imm value or shift amount
-						switch fields.Funct3 {
-						case 0b001, 0b101:
-							c.immOut <- fields.Shift
-						default:
-							c.immOut <- fields.Imm
-						}
-					}()
-
-					go func() {
-						c.aluOpOut <- encodeAluOp(fields.Functs())
-					}()
-
-					go func() {
-						c.aluSrcOut <- 1
-					}()
-
-					go func() {
-						c.werfOut <- 1
-					}()
 				default:
 					panic(fmt.Sprintf("unsupported opcode: %0b", opcode))
 				}

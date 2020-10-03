@@ -54,10 +54,10 @@ func (c *Core) wireComponents() error {
 	c.ctrl.SetPin(ctrlunit.In.Insts, c.GetPin(In.Insts))
 
 	// wire register
-	c.reg.SetPin(reg.In.RDAddr, c.ctrl.GetPin(ctrlunit.Out.RD))
+	c.reg.SetPin(reg.In.Werf, c.ctrl.GetPin(ctrlunit.Out.Werf))
 	c.reg.SetPin(reg.In.RS1Addr, c.ctrl.GetPin(ctrlunit.Out.RS1))
 	c.reg.SetPin(reg.In.RS2Addr, c.ctrl.GetPin(ctrlunit.Out.RS2))
-	c.reg.SetPin(reg.In.Werf, c.ctrl.GetPin(ctrlunit.Out.Werf))
+	c.reg.SetPin(reg.In.RDAddr, c.ctrl.GetPin(ctrlunit.Out.RD))
 
 	// wire alu
 	c.alu.SetPin(alu.In.Operation, c.ctrl.GetPin(ctrlunit.Out.ALUOp))

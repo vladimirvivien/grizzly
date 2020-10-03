@@ -58,22 +58,24 @@ func newRegister() *RegisterFile {
 
 func (r *RegisterFile) Run() error {
 	// rs1
+	rs1Addr := r.GetPin(In.RS1Addr)
 	go func() {
 		defer close(r.rs1DataOut)
 		for {
 			select {
-			case addr := <-r.GetPin(In.RS1Addr):
+			case addr := <-rs1Addr:
 				r.rs1DataOut <- r.read(addr)
 			}
 		}
 	}()
 
 	// rs2
+	rs2Addr := r.GetPin(In.RS2Addr)
 	go func() {
 		defer close(r.rs2DataOut)
 		for {
 			select {
-			case addr := <-r.GetPin(In.RS2Addr):
+			case addr := <-rs2Addr:
 				r.rs2DataOut <- r.read(addr)
 			}
 		}

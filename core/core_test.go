@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vladimirvivien/grizzly/ctrlunit"
+	"github.com/vladimirvivien/grizzly/alu"
 	"github.com/vladimirvivien/grizzly/device"
 	"github.com/vladimirvivien/grizzly/reg"
 )
@@ -12,9 +12,10 @@ import (
 func TestCore(t *testing.T) {
 	tests := []struct {
 		name      string
-		core      func(*testing.T) (*Core, chan struct{})
+		core      func(*testing.T) *Core
 		instructs func(*testing.T) device.WiresOut
 		eval      func(*testing.T, *Core)
+		probeFor uint32
 	}{
 		//{
 		//	name: "single R instruction",
@@ -127,35 +128,27 @@ func TestCore(t *testing.T) {
 		//},
 		{
 			name: "multiple R and RIs",
-			core: func(t *testing.T) (*Core, chan struct{}) {
-				waiter := make(chan struct{})
+			core: func(t *testing.T) *Core {
 				regfile := reg.New().(*reg.RegisterFile)
-				regfile.Print()
 				regfile.SideLoad(0b00001, 4)
 				regfile.SideLoad(0b00010, 2)
-				regfile.Print()
-
-				ctrl := ctrlunit.New()
-				disableCtrl := device.MakeWires()
-				ctrl.SetPin(ctrlunit.In.Disable, disableCtrl)
 
 				cor := newCore()
 				cor.reg = regfile
-				cor.ctrl = ctrl
 
-				insts := make(device.Wires)
+				insts := device.MakeWires()
 				go func() {
-					insts <- 0b000000000010_00001_000_00101_0010011  // addi reg[5] <= 2, reg[1]
-					insts <- 0b0000000_00010_00101_000_00011_0110011 // add  reg[3] <= reg[5], reg[2]
-					insts <- 0b0000000_00001_00011_001_00110_0010011 // slli reg[6] <= 1, reg[3]
-					close(waiter)
+					insts <- 0b000000000010_00001_000_00101_0010011  // addi reg[5] <= 2, reg[1]; reg[5]=6
+					insts <- 0b0000000_00010_00101_000_00011_0110011 // add  reg[3] <= reg[5], reg[2]; reg[3]=8
+					insts <- 0b0000000_00001_00011_001_00110_0010011 // slli reg[6] <= 1, reg[3]; reg[6]=16
 				}()
 				cor.SetPin(In.Insts, insts)
-				return cor, waiter
+				return cor
 			},
 
+			probeFor: 0b10000,
+
 			eval: func(t *testing.T, cor *Core) {
-				//time.Sleep(4000 * time.Millisecond)
 				regfile := cor.reg.(*reg.RegisterFile)
 				regfile.Print()
 
@@ -177,7 +170,32 @@ func TestCore(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cor, waiter := test.core(t)
+			waiter := make(chan struct{})
+			cor := test.core(t)
+
+			// fan out wire from alu output
+			// connect one output back to register data
+			// use other output for probing.
+			pins := device.Fanout(cor.alu.GetPin(alu.Out.Result), 1)
+			cor.reg.SetPin(reg.In.Data, pins[0])
+
+			// probe alu output
+			go func(){
+				//t.Log(<-pins[1])
+				//t.Log(<-pins[1])
+				//t.Log(<-pins[1])
+				time.Sleep(5*time.Second)
+				close(waiter)
+				//for{
+				//	select{
+				//	case  val := <- pins[1]:
+				//		if val == test.probeFor{
+				//			fmt.Println(val)
+				//			close(waiter)
+				//		}
+				//	}
+				//}
+			}()
 
 			if err := cor.Run(); err != nil {
 				t.Fatal(err)
@@ -185,8 +203,9 @@ func TestCore(t *testing.T) {
 
 			select {
 			case <-waiter:
+				t.Log("Eval()")
 				test.eval(t, cor)
-			case <-time.After(5000 * time.Millisecond):
+			case <-time.After(200000 * time.Millisecond):
 				t.Fatalf("Control unit operation %s took too long", test.name)
 			}
 		})

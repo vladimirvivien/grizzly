@@ -195,9 +195,9 @@ func TestALUROps(t *testing.T) {
 
 			go func() {
 				op1, op2 := test.operands()
+				go func(){opwires <- test.aluOp}()
 				d1wires <- op1
 				d2wires <- op2
-				opwires <- test.aluOp
 			}()
 
 			if err := alu.Run(); err != nil {

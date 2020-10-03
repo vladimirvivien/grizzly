@@ -16,13 +16,11 @@ package device
 //
 // This change would allow Grizzly to support different implementations of the RISCV
 // ISA including compressed instructions based on the size of XLEN.
-
 type Datapath = []byte
-
 type Wires = chan uint32
 
 func MakeWires() Wires {
-	return make(chan uint32)
+	return make(chan uint32, 1)
 }
 
 type WiresIn = <-chan uint32

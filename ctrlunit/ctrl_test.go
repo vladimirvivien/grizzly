@@ -17,12 +17,12 @@ func TestCtrl_I(t *testing.T) {
 	tests := []struct {
 		name string
 		inst func() isa.Inst
-		eval func(rd uint32, rs1 uint32, rs2 uint32, aluOp uint32, werf uint32)
+		eval func(rs1 uint32, rs2 uint32, rd uint32, aluOp uint32, werf uint32)
 	}{
 		{
 			name: "R format (add)",
 			inst: func() isa.Inst { return 0b0000000_00010_00001_000_00101_0110011 },
-			eval: func(rd, rs1, rs2, aluOp, werf uint32) {
+			eval: func(rs1, rs2, rd, aluOp, werf uint32) {
 				if aluOp != alu.Ops.Add {
 					t.Errorf("Unexpected Operation value: %b", aluOp)
 				}
@@ -57,9 +57,9 @@ func TestCtrl_I(t *testing.T) {
 			go func() {
 				defer close(wait)
 				test.eval(
-					<-ctrl.GetPin(Out.RD),
 					<-ctrl.GetPin(Out.RS1),
 					<-ctrl.GetPin(Out.RS2),
+					<-ctrl.GetPin(Out.RD),
 					<-ctrl.GetPin(Out.ALUOp),
 					<-ctrl.GetPin(Out.Werf),
 				)
@@ -82,12 +82,12 @@ func TestCtrl_RI(t *testing.T) {
 	tests := []struct {
 		name string
 		inst func() isa.Inst
-		eval func(rd uint32, rs1 uint32, imm uint32, aluOp uint32, werf uint32)
+		eval func(rs1 uint32, imm uint32, rd uint32, aluOp uint32, werf uint32)
 	}{
 		{
 			name: "RI format (addi)",
 			inst: func() isa.Inst { return 0b000000000010_00001_000_00101_0010011 },
-			eval: func(rd, rs1, imm, aluOp, werf uint32) {
+			eval: func(rs1, imm, rd, aluOp, werf uint32) {
 				if aluOp != alu.Ops.Add {
 					t.Errorf("Unexpected Operation value: %b", aluOp)
 				}
@@ -119,9 +119,9 @@ func TestCtrl_RI(t *testing.T) {
 			go func() {
 				defer close(wait)
 				test.eval(
-					<-ctrl.GetPin(Out.RD),
 					<-ctrl.GetPin(Out.RS1),
 					<-ctrl.GetPin(Out.Imm),
+					<-ctrl.GetPin(Out.RD),
 					<-ctrl.GetPin(Out.ALUOp),
 					<-ctrl.GetPin(Out.Werf),
 				)

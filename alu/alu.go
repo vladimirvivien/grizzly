@@ -60,8 +60,8 @@ var (
 		Operand2  device.PinLabel // operand2
 		Operation device.PinLabel // function bits
 	}{
-		Operand1:  "alu.data1.in",
-		Operand2:  "alu.data2.in",
+		Operand1:  "alu.operand1.in",
+		Operand2:  "alu.operand2.in",
 		Operation: "alu.operation.in",
 	}
 
@@ -101,11 +101,17 @@ func newAlu() *ALU {
 func (a *ALU) Run() error {
 	go func() {
 		defer close(a.resultOut)
+		opWire := a.GetPin(In.Operation)
+		operandWire1 := a.GetPin(In.Operand1)
+		operandWire2 := a.GetPin(In.Operand2)
+
 		for {
-			data1 := <-a.GetPin(In.Operand1)
-			data2 := <-a.GetPin(In.Operand2)
-			// ALU Operation
-			op := <-a.GetPin(In.Operation)
+			// control
+			op := <-opWire
+
+			// data path order operand1, operand2
+			data1 := <-operandWire1
+			data2 := <-operandWire2
 
 			switch op {
 			// addition: add, addi
