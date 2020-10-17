@@ -1,5 +1,9 @@
 package isa
 
+import (
+	"github.com/vladimirvivien/grizzly/datapath"
+)
+
 var (
 	Opcodes = struct {
 		R,
@@ -23,7 +27,7 @@ var (
 )
 
 // Inst represents a RISCV-32 instruction
-type Inst = uint32
+type Inst = datapath.Word
 
 // BaseFields common fields for all inst
 type BaseFields struct {

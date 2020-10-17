@@ -1,6 +1,9 @@
 package alu
 
 import (
+	"log"
+
+	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/device"
 )
 
@@ -75,8 +78,8 @@ var (
 )
 
 type ALU struct {
-	resultOut device.Wires // output
-	zeroOut   device.Wires // zero line
+	resultOut datapath.Wires // output
+	zeroOut   datapath.Wires // zero line
 	*device.Base
 }
 
@@ -86,7 +89,7 @@ func New() device.Type {
 
 func newAlu() *ALU {
 	a := &ALU{
-		resultOut: device.MakeWires(),
+		resultOut: datapath.MakeWires(),
 		Base:      device.NewBase(),
 	}
 
@@ -99,6 +102,7 @@ func newAlu() *ALU {
 // Data1 and Data2 are read sequentially and must
 // be available or risk blocking.
 func (a *ALU) Run() error {
+	log.Println("alu: starting...")
 	go func() {
 		defer close(a.resultOut)
 		opWire := a.GetPin(In.Operation)
@@ -112,6 +116,8 @@ func (a *ALU) Run() error {
 			// data path order operand1, operand2
 			data1 := <-operandWire1
 			data2 := <-operandWire2
+
+			log.Printf("alu: op=%05b, op1=%032b, op2=%032b", op, data1, data2)
 
 			switch op {
 			// addition: add, addi

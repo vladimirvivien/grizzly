@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vladimirvivien/grizzly/device"
+	"github.com/vladimirvivien/grizzly/datapath"
 )
 
 func TestRegisterFile(t *testing.T) {
@@ -28,11 +28,11 @@ func TestRegisterFile(t *testing.T) {
 		{
 			name: "test rs values",
 			rslines: func() (rs1, rs2, data, rd, werf <-chan uint32) {
-				rs1wire := device.MakeWires()
-				rs2wire := device.MakeWires()
-				datawire := device.MakeWires()
-				rdwire := device.MakeWires()
-				wenable := device.MakeWires()
+				rs1wire := datapath.MakeWires()
+				rs2wire := datapath.MakeWires()
+				datawire := datapath.MakeWires()
+				rdwire := datapath.MakeWires()
+				wenable := datapath.MakeWires()
 				go func() {
 					defer func() {
 						close(rs1wire)

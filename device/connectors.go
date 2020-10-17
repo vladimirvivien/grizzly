@@ -1,15 +1,23 @@
 package device
 
+import (
+	"log"
+
+	"github.com/vladimirvivien/grizzly/datapath"
+)
+
 // Mux uses selector pin as index to select value from
 // a collection of pins (channels)
 func Mux(selPin Pin, inPins ...Pin) Pin {
-	output := MakeWires()
+	log.Printf("mux: 1-to-%d created", len(inPins))
+	output := datapath.MakeWires()
 	go func() {
 		defer close(output)
 		for {
 			var value uint32
 			select {
 			case sel := <-selPin:
+				log.Printf("mux: output[%d] selected", sel)
 				select {
 				case value = <-inPins[sel]:
 					output <- value
@@ -22,11 +30,11 @@ func Mux(selPin Pin, inPins ...Pin) Pin {
 
 // Fanout transfer value read from inPin to output
 func Fanout(inPin Pin, fanSize int) (output []Pin) {
-	wires := make([]Wires, fanSize)
+	wires := make([]datapath.Wires, fanSize)
 
 	// connect wires to output pins
 	for i := range wires {
-		wires[i] = MakeWires()
+		wires[i] = datapath.MakeWires()
 		output = append(output, wires[i])
 	}
 
@@ -44,6 +52,3 @@ func Fanout(inPin Pin, fanSize int) (output []Pin) {
 
 	return
 }
-
-// TODO this may be needed
-// func FanoutSequential(inPin Pin, wires...Wires)

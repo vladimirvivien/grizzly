@@ -2,7 +2,9 @@ package ctrlunit
 
 import (
 	"fmt"
+	"log"
 
+	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/device"
 	"github.com/vladimirvivien/grizzly/isa"
 )
@@ -43,13 +45,13 @@ var (
 // If not read in that order, races will be created.
 type Controller struct {
 	*device.Base
-	rdOut     device.Wires // regfile data address
-	rs1Out    device.Wires // regfile select addr 1
-	rs2Out    device.Wires // regfile select addr 2
-	immOut    device.Wires // immediate value
-	aluOpOut  device.Wires // ALU operation
-	aluSrcOut device.Wires // ALU source mux selector
-	werfOut   device.Wires // regfile write enable file
+	rdOut     datapath.Wires // regfile data address
+	rs1Out    datapath.Wires // regfile select addr 1
+	rs2Out    datapath.Wires // regfile select addr 2
+	immOut    datapath.Wires // immediate value
+	aluOpOut  datapath.Wires // ALU operation
+	aluSrcOut datapath.Wires // ALU source mux selector
+	werfOut   datapath.Wires // regfile write enable file
 }
 
 // New creates a new *Controller
@@ -60,13 +62,13 @@ func New() device.Type {
 func newCtrl() *Controller {
 	c := &Controller{
 		Base:      device.NewBase(),
-		rdOut:     device.MakeWires(),
-		rs1Out:    device.MakeWires(),
-		rs2Out:    device.MakeWires(),
-		immOut:    device.MakeWires(),
-		aluOpOut:  device.MakeWires(),
-		aluSrcOut: device.MakeWires(),
-		werfOut:   device.MakeWires(),
+		rdOut:     datapath.MakeWires(),
+		rs1Out:    datapath.MakeWires(),
+		rs2Out:    datapath.MakeWires(),
+		immOut:    datapath.MakeWires(),
+		aluOpOut:  datapath.MakeWires(),
+		aluSrcOut: datapath.MakeWires(),
+		werfOut:   datapath.MakeWires(),
 	}
 	c.SetPin(Out.RD, c.rdOut)
 	c.SetPin(Out.RS1, c.rs1Out)
@@ -80,6 +82,7 @@ func newCtrl() *Controller {
 }
 
 func (c *Controller) Run() error {
+	log.Println("controller: starting...")
 	go func() {
 		defer func() {
 			close(c.rdOut)
@@ -95,39 +98,58 @@ func (c *Controller) Run() error {
 		for {
 			select {
 			case inst := <-insts:
+
 				opcode := inst & 0x7F
+				log.Printf("ctrl: fetched %032b", inst)
 				switch opcode {
 				case isa.Opcodes.R:
 					fields := decodeR(inst)
 
-					// controls
-					c.werfOut <- 1
-					c.aluOpOut <- encodeAluOp(fields.Functs())
-					c.aluSrcOut <- 0
+					// alu
+					go func() {
+						c.aluOpOut <- encodeAluOp(fields.Functs())
+						c.aluSrcOut <- 0
+					}()
 
-					// data path sent in order rs1,rs2,rd
-					c.rs1Out <- fields.Rs1
-					c.rs2Out <- fields.Rs2
-					c.rdOut <- fields.Rd
+					// register addr lines: independent
+					datapath.Send(
+						datapath.Packet{fields.Rs1,c.rs1Out},
+						datapath.Packet{fields.Rs2,c.rs2Out},
+					)
 
+					//go func() {
+					//	c.rs1Out <- fields.Rs1
+					//}()
+					//go func() {
+					//	c.rs2Out <- fields.Rs2
+					//}()
+
+					// register: werf, rd
+					go func() {
+						c.werfOut <- 1
+						c.rdOut <- fields.Rd
+					}()
 				case isa.Opcodes.RI:
 					fields := decodeRI(inst)
 
-					// controls
-					c.werfOut <- 1
-					c.aluOpOut <- encodeAluOp(fields.Functs())
-					c.aluSrcOut <- 1
+					// alu
+					go func() {
+						c.aluOpOut <- encodeAluOp(fields.Functs())
+						c.aluSrcOut <- 1
+					}()
 
-					// data path order: rs1, imm, rd
-					c.rs1Out <- fields.Rs1
-					switch fields.Funct3 {
-					case 0b001, 0b101:
-						c.immOut <- fields.Shift
-					default:
-						c.immOut <- fields.Imm
-					}
-					c.rdOut <- fields.Rd
-
+					// register data path order: rs1, imm, rd
+					go func() {
+						c.werfOut <- 1
+						c.rs1Out <- fields.Rs1
+						switch fields.Funct3 {
+						case 0b001, 0b101:
+							c.immOut <- fields.Shift
+						default:
+							c.immOut <- fields.Imm
+						}
+						c.rdOut <- fields.Rd
+					}()
 				default:
 					panic(fmt.Sprintf("unsupported opcode: %0b", opcode))
 				}

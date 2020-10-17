@@ -2,7 +2,9 @@ package reg
 
 import (
 	"fmt"
+	"log"
 
+	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/device"
 )
 
@@ -33,8 +35,8 @@ var (
 type RegisterFile struct {
 	*device.Base
 	file       []uint32
-	rs1DataOut device.Wires
-	rs2DataOut device.Wires
+	rs1DataOut datapath.Wires
+	rs2DataOut datapath.Wires
 }
 
 func New() device.Type {
@@ -43,9 +45,9 @@ func New() device.Type {
 
 func newRegister() *RegisterFile {
 	r := &RegisterFile{
-		file:       make([]uint32, 32, 32),
-		rs1DataOut: device.MakeWires(),
-		rs2DataOut: device.MakeWires(),
+		file:       make([]datapath.Word, 32, 32),
+		rs1DataOut: datapath.MakeWires(),
+		rs2DataOut: datapath.MakeWires(),
 		Base:       device.NewBase(),
 	}
 
@@ -57,30 +59,23 @@ func newRegister() *RegisterFile {
 }
 
 func (r *RegisterFile) Run() error {
+	log.Println("regfile: starting...")
 	// rs1
 	rs1Addr := r.GetPin(In.RS1Addr)
+	rs2Addr := r.GetPin(In.RS2Addr)
 	go func() {
 		defer close(r.rs1DataOut)
 		for {
 			select {
 			case addr := <-rs1Addr:
 				r.rs1DataOut <- r.read(addr)
-			}
-		}
-	}()
-
-	// rs2
-	rs2Addr := r.GetPin(In.RS2Addr)
-	go func() {
-		defer close(r.rs2DataOut)
-		for {
-			select {
 			case addr := <-rs2Addr:
 				r.rs2DataOut <- r.read(addr)
+			default:
+				continue
 			}
 		}
 	}()
-
 
 	// write operation blocks until it is received
 	dataPin := r.GetPin(In.Data)
@@ -98,6 +93,8 @@ func (r *RegisterFile) Run() error {
 				addr := <-dataAddrPin
 				data := <-dataPin
 				r.write(addr, data)
+			default:
+				continue
 			}
 		}
 	}()
@@ -105,13 +102,16 @@ func (r *RegisterFile) Run() error {
 	return nil
 }
 
-func (r *RegisterFile) read(addr uint32) uint32 {
+func (r *RegisterFile) read(addr uint32) (data uint32) {
 	r.RLock()
 	defer r.RUnlock()
 	if addr == 0 {
-		return 0
+		data = 0
+	} else {
+		data = r.file[addr]
 	}
-	return r.file[addr]
+	log.Printf("regfile: read file[%05b] = %032b", addr, data)
+	return
 }
 
 func (r *RegisterFile) write(addr uint32, data uint32) {
@@ -121,6 +121,7 @@ func (r *RegisterFile) write(addr uint32, data uint32) {
 		return
 	}
 	r.file[addr] = data
+	log.Printf("regfile: wrote file[%05b]=%032b", addr, data)
 }
 
 // Probe is a TEST-ONLY method that is used to read
@@ -131,6 +132,7 @@ func (r *RegisterFile) Probe(addr uint32) uint32 {
 
 // SideLoad is TEST-ONLY method used to load values directly into reg
 func (r *RegisterFile) SideLoad(addr uint32, val uint32) {
+	log.Printf("regfile: sideload addr[%05b]=%032b", addr, val)
 	r.write(addr, val)
 }
 

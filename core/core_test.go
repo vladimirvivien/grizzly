@@ -5,17 +5,102 @@ import (
 	"time"
 
 	"github.com/vladimirvivien/grizzly/alu"
+	"github.com/vladimirvivien/grizzly/ctrlunit"
+	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/device"
 	"github.com/vladimirvivien/grizzly/reg"
 )
+
+// TestCore_CtrlReg
+// Tests execution between controller and register file
+func TestCore_CtrlReg(t *testing.T) {
+	tests := []struct {
+		name string
+		prep func(*testing.T, *reg.RegisterFile) device.Pin
+		eval func(*testing.T, *reg.RegisterFile, datapath.Wires)
+	}{
+		{
+			name: "add",
+			prep: func(t *testing.T, reg *reg.RegisterFile) device.Pin {
+				reg.SideLoad(2, 4)
+				reg.SideLoad(6, 12)
+				reg.SideLoad(8, 16)
+
+				insts := datapath.MakeWires()
+				go func() {
+					insts <- 0b0000000_00110_00010_000_00101_0110011 // reg[2]=4, reg[6]=12
+					insts <- 0b0000000_01000_00110_000_00101_0110011 // reg[6]=12, reg[8]=16
+					insts <- 0b0000000_00010_01000_000_00101_0110011 // reg[8]=16, reg[2]=4
+				}()
+
+				return insts
+			},
+			eval: func(t *testing.T, regfile *reg.RegisterFile, dataWire datapath.Wires) {
+				op1Wire := regfile.GetPin(reg.Out.RS1Data)
+				op2Wire := regfile.GetPin(reg.Out.RS2Data)
+
+				// collect from
+				words := datapath.Collect(op1Wire, op2Wire,op1Wire, op2Wire,op1Wire, op2Wire)
+
+				if words[0] != 4 {
+					t.Fatalf("Unexpected data from register line %d", words[0])
+				}
+				if words[1] != 12 {
+					t.Fatalf("Unexpected data from register line %d", words[1])
+				}
+
+				if words[2] != 12 {
+					t.Fatalf("Unexpected data from register line %d", words[2])
+				}
+				if words[3] != 16 {
+					t.Fatalf("Unexpected data from register line %d", words[3])
+				}
+
+				if words[4] != 16 {
+					t.Fatalf("Unexpected data from register line %d", words[4])
+				}
+				if words[5] != 4 {
+					t.Fatalf("Unexpected data from register line %d", words[5])
+				}
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cor := newCore()
+			register := cor.reg.(*reg.RegisterFile)
+			insts := test.prep(t, register)
+			cor.ctrl.SetPin(ctrlunit.In.Insts, insts)
+
+			dataWire := datapath.MakeWires()
+			register.SetPin(reg.In.Data, dataWire)
+
+			// wire register
+			cor.reg.SetPin(reg.In.Werf, cor.ctrl.GetPin(ctrlunit.Out.Werf))
+			cor.reg.SetPin(reg.In.RS1Addr, cor.ctrl.GetPin(ctrlunit.Out.RS1))
+			cor.reg.SetPin(reg.In.RS2Addr, cor.ctrl.GetPin(ctrlunit.Out.RS2))
+			cor.reg.SetPin(reg.In.RDAddr, cor.ctrl.GetPin(ctrlunit.Out.RD))
+
+			if err := cor.reg.Run(); err != nil {
+				t.Fatal(err)
+			}
+			if err := cor.ctrl.Run(); err != nil {
+				t.Fatal(err)
+			}
+
+			test.eval(t, register, dataWire)
+		})
+	}
+}
 
 func TestCore(t *testing.T) {
 	tests := []struct {
 		name      string
 		core      func(*testing.T) *Core
-		instructs func(*testing.T) device.WiresOut
+		instructs func(*testing.T) device.Pin
 		eval      func(*testing.T, *Core)
-		probeFor uint32
+		probeFor  uint32
 	}{
 		//{
 		//	name: "single R instruction",
@@ -136,7 +221,7 @@ func TestCore(t *testing.T) {
 				cor := newCore()
 				cor.reg = regfile
 
-				insts := device.MakeWires()
+				insts := datapath.MakeWires()
 				go func() {
 					insts <- 0b000000000010_00001_000_00101_0010011  // addi reg[5] <= 2, reg[1]; reg[5]=6
 					insts <- 0b0000000_00010_00101_000_00011_0110011 // add  reg[3] <= reg[5], reg[2]; reg[3]=8
@@ -172,6 +257,7 @@ func TestCore(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			waiter := make(chan struct{})
 			cor := test.core(t)
+			regfile := cor.reg.(*reg.RegisterFile)
 
 			// fan out wire from alu output
 			// connect one output back to register data
@@ -180,11 +266,24 @@ func TestCore(t *testing.T) {
 			cor.reg.SetPin(reg.In.Data, pins[0])
 
 			// probe alu output
-			go func(){
+			go func() {
 				//t.Log(<-pins[1])
 				//t.Log(<-pins[1])
 				//t.Log(<-pins[1])
-				time.Sleep(5*time.Second)
+				ticker := time.NewTicker(100 * time.Millisecond)
+				for {
+					select {
+					case <-ticker.C:
+						if regfile.Probe(6) == 0 {
+							continue
+						}
+						break
+
+					case <-time.After(1000 * time.Millisecond):
+						t.Fatal("tired of waiting for probe value")
+					}
+
+				}
 				close(waiter)
 				//for{
 				//	select{
@@ -205,7 +304,7 @@ func TestCore(t *testing.T) {
 			case <-waiter:
 				t.Log("Eval()")
 				test.eval(t, cor)
-			case <-time.After(200000 * time.Millisecond):
+			case <-time.After(5000 * time.Millisecond):
 				t.Fatalf("Control unit operation %s took too long", test.name)
 			}
 		})

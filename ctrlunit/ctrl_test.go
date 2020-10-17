@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/vladimirvivien/grizzly/alu"
-	"github.com/vladimirvivien/grizzly/device"
+	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/isa"
 )
 
 func TestCtrl_I(t *testing.T) {
-	instructions := device.MakeWires()
+	instructions := datapath.MakeWires()
 	ctrl := newCtrl()
 	ctrl.SetPin(In.Insts, instructions)
 
@@ -75,7 +75,7 @@ func TestCtrl_I(t *testing.T) {
 }
 
 func TestCtrl_RI(t *testing.T) {
-	instructions := device.MakeWires()
+	instructions := datapath.MakeWires()
 	ctrl := newCtrl()
 	ctrl.SetPin(In.Insts, instructions)
 

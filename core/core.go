@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/vladimirvivien/grizzly/alu"
 	"github.com/vladimirvivien/grizzly/ctrlunit"
@@ -39,6 +40,7 @@ func newCore() *Core {
 
 // Run starts the core and its components
 func (c *Core) Run() error {
+	log.Println("core: starting...")
 	if err := c.wireComponents(); err != nil {
 		return err
 	}
@@ -46,6 +48,7 @@ func (c *Core) Run() error {
 }
 
 func (c *Core) wireComponents() error {
+	log.Println("core: wiring components")
 	if c.GetPin(In.Insts) == nil {
 		return fmt.Errorf("instructions datapath not set")
 	}
@@ -74,6 +77,7 @@ func (c *Core) wireComponents() error {
 
 // startComponents loop through each component and invoke Run.
 func (c *Core) startComponents() error {
+	log.Println("core: starting components")
 	for _, comp := range []device.Type{c.ctrl, c.reg, c.alu} {
 		if err := comp.Run(); err != nil {
 			return err
