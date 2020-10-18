@@ -17,7 +17,6 @@ func Mux(selPin Pin, inPins ...Pin) Pin {
 			var value uint32
 			select {
 			case sel := <-selPin:
-				log.Printf("mux: output[%d] selected", sel)
 				select {
 				case value = <-inPins[sel]:
 					output <- value

@@ -98,58 +98,47 @@ func (c *Controller) Run() error {
 		for {
 			select {
 			case inst := <-insts:
-
 				opcode := inst & 0x7F
-				log.Printf("ctrl: fetched %032b", inst)
+
 				switch opcode {
 				case isa.Opcodes.R:
 					fields := decodeR(inst)
 
-					// alu
-					go func() {
-						c.aluOpOut <- encodeAluOp(fields.Functs())
-						c.aluSrcOut <- 0
-					}()
-
-					// register addr lines: independent
+					// send register file ctrl and addrs
 					datapath.Send(
+						datapath.Packet{encodeAluOp(fields.Functs()), c.aluOpOut},
+						datapath.Packet{0, c.aluSrcOut},
+
 						datapath.Packet{fields.Rs1,c.rs1Out},
 						datapath.Packet{fields.Rs2,c.rs2Out},
+
+						datapath.Packet{1,c.werfOut},
+						datapath.Packet{fields.Rd,c.rdOut},
 					)
 
-					//go func() {
-					//	c.rs1Out <- fields.Rs1
-					//}()
-					//go func() {
-					//	c.rs2Out <- fields.Rs2
-					//}()
-
-					// register: werf, rd
-					go func() {
-						c.werfOut <- 1
-						c.rdOut <- fields.Rd
-					}()
 				case isa.Opcodes.RI:
 					fields := decodeRI(inst)
 
-					// alu
-					go func() {
-						c.aluOpOut <- encodeAluOp(fields.Functs())
-						c.aluSrcOut <- 1
-					}()
+					var imm uint32
+					switch fields.Funct3 {
+					case 0b001, 0b101:
+						imm = fields.Shift
+					default:
+						imm = fields.Imm
+					}
 
-					// register data path order: rs1, imm, rd
-					go func() {
-						c.werfOut <- 1
-						c.rs1Out <- fields.Rs1
-						switch fields.Funct3 {
-						case 0b001, 0b101:
-							c.immOut <- fields.Shift
-						default:
-							c.immOut <- fields.Imm
-						}
-						c.rdOut <- fields.Rd
-					}()
+					datapath.Send(
+						datapath.Packet{encodeAluOp(fields.Functs()), c.aluOpOut},
+						datapath.Packet{1, c.aluSrcOut},
+
+						datapath.Packet{fields.Rs1,c.rs1Out},
+						datapath.Packet{0,c.rs2Out}, // send 0 for correct data flow
+
+						datapath.Packet{imm,c.immOut},
+
+						datapath.Packet{1,c.werfOut},
+						datapath.Packet{fields.Rd,c.rdOut},
+					)
 				default:
 					panic(fmt.Sprintf("unsupported opcode: %0b", opcode))
 				}

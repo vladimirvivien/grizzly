@@ -60,41 +60,38 @@ func newRegister() *RegisterFile {
 
 func (r *RegisterFile) Run() error {
 	log.Println("regfile: starting...")
-	// rs1
-	rs1Addr := r.GetPin(In.RS1Addr)
-	rs2Addr := r.GetPin(In.RS2Addr)
 	go func() {
-		defer close(r.rs1DataOut)
-		for {
-			select {
-			case addr := <-rs1Addr:
-				r.rs1DataOut <- r.read(addr)
-			case addr := <-rs2Addr:
-				r.rs2DataOut <- r.read(addr)
-			default:
-				continue
-			}
-		}
-	}()
+		defer func() {
+			close(r.rs1DataOut)
+			close(r.rs2DataOut)
+		}()
 
-	// write operation blocks until it is received
-	dataPin := r.GetPin(In.Data)
-	dataAddrPin := r.GetPin(In.RDAddr)
-	werfPin := r.GetPin(In.Werf)
+		rs1Pin := r.GetPin(In.RS1Addr)
+		rs2Pin := r.GetPin(In.RS2Addr)
+		rdPin := r.GetPin(In.RDAddr)
+		werfPin := r.GetPin(In.Werf)
+		dataPin := r.GetPin(In.Data)
 
-	// write loop sequence:
-	// 1. writeEnale
-	// 2. RD Data
-	// 3. RD Addr
-	go func() {
 		for {
+			// Collect address lines
+			addrs := datapath.Collect(rs1Pin, rs2Pin)
+			rs1Addr, rs2Addr := addrs[0], addrs[1]
+
+			// send values out
+			datapath.Send(
+				datapath.Packet{r.read(rs1Addr), r.rs1DataOut},
+				datapath.Packet{r.read(rs2Addr), r.rs2DataOut},
+			)
+
+			// wait for werf (only if provided) and collect and write data
 			select {
-			case <-werfPin:
-				addr := <-dataAddrPin
-				data := <-dataPin
-				r.write(addr, data)
-			default:
-				continue
+			case werf := <-werfPin:
+				if werf == 1 {
+					results := datapath.Collect(rdPin, dataPin)
+					rdAddr, data := results[0], results[1]
+					r.write(rdAddr, data)
+				}
+			default: // when werf not provided
 			}
 		}
 	}()

@@ -39,16 +39,20 @@ func TestRegisterFile(t *testing.T) {
 						close(rs2wire)
 					}()
 					rs1wire <- 0x0
-					rs1wire <- 0x1
-					rs2wire <- 0x2
+					rs2wire <- 0x1
+
+					rs1wire <- 0x2
 					rs2wire <- 0x3
-					rs2wire <- 0x4
+
+					rs1wire <- 0x4
+					rs2wire <- 0x9
 
 					//write data
 					// be mindful of order of rd and rdData.
 					wenable <- 1
 					rdwire <- 0x05
 					datawire <- 0xCAFE
+					rs1wire <- 0
 					rs2wire <- 0x5 // read the data
 
 					rs1wire <- 0x7
@@ -61,29 +65,37 @@ func TestRegisterFile(t *testing.T) {
 				if rs1 != 0x0 {
 					t.Errorf("Unexpected RS1 data %d", rs1)
 				}
-				rs1 = <-rf.GetPin(Out.RS1Data)
-				if rs1 != 0x1 {
-					t.Errorf("Unexpected RS1 data %d", rs1)
-				}
 				rs2 := <-rf.GetPin(Out.RS2Data)
-				if rs2 != 0x2 {
-					t.Errorf("Unexpected RS2 data %d", rs2)
+				if rs2 != 0x1 {
+					t.Errorf("Unexpected RS1 data %d", rs2)
+				}
+				rs1 = <-rf.GetPin(Out.RS1Data)
+				if rs1 != 0x2 {
+					t.Errorf("Unexpected RS2 data %d", rs1)
 				}
 				rs2 = <-rf.GetPin(Out.RS2Data)
 				if rs2 != 0x3 {
 					t.Errorf("Unexpected RS2 data %d", rs2)
 				}
+				rs1 = <-rf.GetPin(Out.RS1Data)
+				if rs1 != 0x4 {
+					t.Errorf("Unexpected RS2 data %d", rs1)
+				}
 				rs2 = <-rf.GetPin(Out.RS2Data)
-				if rs2 != 0x4 {
+				if rs2 != 0x9 {
 					t.Errorf("Unexpected RS2 data %d", rs2)
 				}
+
+				// test RD and DATA
+				<-rf.GetPin(Out.RS1Data) // drain
 				rs2 = <-rf.GetPin(Out.RS2Data)
 				if rs2 != 0xCAFE {
-					t.Errorf("Unexpected RS2 data %d", rs2)
+					t.Errorf("Unexpected RS1 data %d", rs1)
 				}
+
 				rs1 = <-rf.GetPin(Out.RS1Data)
 				if rs1 != 0xA {
-					t.Errorf("Unexpected RS1 data %d", rs1)
+					t.Errorf("Unexpected RS2 data %d", rs1)
 				}
 				rs2 = <-rf.GetPin(Out.RS2Data)
 				if rs2 != 0xCAFE {

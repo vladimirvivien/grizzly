@@ -105,32 +105,32 @@ func (a *ALU) Run() error {
 	log.Println("alu: starting...")
 	go func() {
 		defer close(a.resultOut)
+
 		opWire := a.GetPin(In.Operation)
 		operandWire1 := a.GetPin(In.Operand1)
 		operandWire2 := a.GetPin(In.Operand2)
 
 		for {
-			// control
-			op := <-opWire
-
-			// data path order operand1, operand2
-			data1 := <-operandWire1
-			data2 := <-operandWire2
+			// wait for opCtrl, collect data
+			data := datapath.Collect(opWire, operandWire1, operandWire2)
+			op, data1, data2 := data[0], data[1], data[2]
 
 			log.Printf("alu: op=%05b, op1=%032b, op2=%032b", op, data1, data2)
+
+			var opResult datapath.Word
 
 			switch op {
 			// addition: add, addi
 			case Ops.Add:
-				a.resultOut <- data1 + data2
+				opResult = data1 + data2
 
 			// sub
 			case Ops.Sub:
-				a.resultOut <- data1 - data2
+				opResult = data1 - data2
 
 			// shift logical left: sll, slli
 			case Ops.Sll:
-				a.resultOut <- data1 << data2
+				opResult = data1 << data2
 
 			// set if less then (signed): slt, slti
 			case Ops.Slt:
@@ -138,7 +138,7 @@ func (a *ALU) Run() error {
 				if int32(data1) < int32(data2) {
 					result = 1
 				}
-				a.resultOut <- result
+				opResult = result
 
 			// set if less then (unsigned): sltu, sltiu
 			case Ops.Sltu:
@@ -146,37 +146,37 @@ func (a *ALU) Run() error {
 				if data1 < data2 {
 					result = 1
 				}
-				a.resultOut <- result
+				opResult = result
 
 			// or, ori
 			case Ops.Xor:
-				a.resultOut <- data1 ^ data2
+				opResult = data1 ^ data2
 
 			// shift right logical: srl, srli
 			case Ops.Srl:
-				a.resultOut <- data1 >> data2
+				opResult = data1 >> data2
 
 			// shift right arithmetic: sra, srai
 			case Ops.Sra:
-				a.resultOut <- uint32(int32(data1) >> data2)
+				opResult = uint32(int32(data1) >> data2)
 
 			// or, ori
 			case Ops.Or:
-				a.resultOut <- data1 | data2
+				opResult = data1 | data2
 
 			// and, andi
 			case Ops.And:
-				a.resultOut <- data1 & data2
+				opResult = data1 & data2
 
 			// mul
 			case Ops.Mul:
-				a.resultOut <- data1 * data2
+				opResult = data1 * data2
 			case Ops.Mulh:
-				a.resultOut <- mulh(data1, data2)
+				opResult = mulh(data1, data2)
 			case Ops.Mulhsu:
-				a.resultOut <- mulhsu(data1, data2)
+				opResult = mulhsu(data1, data2)
 			case Ops.Mulhu:
-				a.resultOut <- mulhu(data1, data2)
+				opResult = mulhu(data1, data2)
 
 			case Ops.Div:
 			case Ops.Divu:
@@ -184,6 +184,7 @@ func (a *ALU) Run() error {
 			case Ops.Remu:
 			}
 
+			a.resultOut <- opResult
 		}
 	}()
 

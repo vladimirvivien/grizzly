@@ -16,71 +16,99 @@ import (
 func TestCore_CtrlReg(t *testing.T) {
 	tests := []struct {
 		name string
-		prep func(*testing.T, *reg.RegisterFile) device.Pin
-		eval func(*testing.T, *reg.RegisterFile, datapath.Wires)
+		prep func(*testing.T) (*Core, datapath.Wires)
+		eval func(*testing.T, *Core, datapath.Wires)
 	}{
 		{
 			name: "add",
-			prep: func(t *testing.T, reg *reg.RegisterFile) device.Pin {
+			prep: func(t *testing.T, ) (*Core, datapath.Wires) {
+				cor := newCore()
+				insts := datapath.MakeWires()
+				cor.ctrl.SetPin(ctrlunit.In.Insts, insts)
+				regData := datapath.MakeWires()
+
+				reg := cor.reg.(*reg.RegisterFile)
 				reg.SideLoad(2, 4)
 				reg.SideLoad(6, 12)
 				reg.SideLoad(8, 16)
 
-				insts := datapath.MakeWires()
 				go func() {
-					insts <- 0b0000000_00110_00010_000_00101_0110011 // reg[2]=4, reg[6]=12
-					insts <- 0b0000000_01000_00110_000_00101_0110011 // reg[6]=12, reg[8]=16
-					insts <- 0b0000000_00010_01000_000_00101_0110011 // reg[8]=16, reg[2]=4
+					insts <- 0b0000000_00110_00010_000_00101_0110011 // add  reg[5]  = reg[2]=4, reg[6]=12
+					insts <- 0b000000000010_00101_000_00101_0010011  // addi reg[5]  = reg[5]=16, 2
+					insts <- 0b0000000_01000_00110_000_00111_0110011 // add  reg[7]  = reg[6]=12, reg[8]=16
+					insts <- 0b0000000_00010_01000_000_01010_0110011 // add  reg[10] = reg[8]=16, reg[2]=4
 				}()
 
-				return insts
+				return cor, regData
 			},
-			eval: func(t *testing.T, regfile *reg.RegisterFile, dataWire datapath.Wires) {
-				op1Wire := regfile.GetPin(reg.Out.RS1Data)
-				op2Wire := regfile.GetPin(reg.Out.RS2Data)
+			eval: func(t *testing.T, cor *Core, regData datapath.Wires) {
+				ctrl := cor.ctrl.(*ctrlunit.Controller)
+				aluOp := ctrl.GetPin(ctrlunit.Out.ALUOp)
+				aluSrc := ctrl.GetPin(ctrlunit.Out.ALUSrc)
+				imm := ctrl.GetPin(ctrlunit.Out.Imm)
+
+				regfile := cor.reg.(*reg.RegisterFile)
+				rs1Data := regfile.GetPin(reg.Out.RS1Data)
+				rs2Data := regfile.GetPin(reg.Out.RS2Data)
 
 				// collect from
-				words := datapath.Collect(op1Wire, op2Wire,op1Wire, op2Wire,op1Wire, op2Wire)
+				data := datapath.Collect(aluOp, aluSrc, rs1Data, rs2Data)
+				op1, op2 := data[2], data[3]
+				if op1 != 4 {
+					t.Fatalf("Unexpected data from register line %d", op1)
+				}
+				if op2 != 12 {
+					t.Fatalf("Unexpected data from register line %d", op2)
+				}
+				// register file data line must be provided after each R inst or deadlock will happen
+				regData <- op1 + op2
 
-				if words[0] != 4 {
-					t.Fatalf("Unexpected data from register line %d", words[0])
+				data = datapath.Collect(aluOp, aluSrc, rs1Data, rs2Data, imm)
+				op1, op2, immOp := data[2], data[3], data[4]
+				if op1 != 16 {
+					t.Fatalf("Unexpected op1 data: %d", op1)
 				}
-				if words[1] != 12 {
-					t.Fatalf("Unexpected data from register line %d", words[1])
+				if op2 != 0 {
+					t.Fatalf("reg op2 should be 0 in imm, bot got %d", op2)
 				}
+				if immOp != 2 {
+					t.Fatalf("unexpected data for ctrl imm %d", immOp)
+				}
+				regData <- op1 + immOp
 
-				if words[2] != 12 {
-					t.Fatalf("Unexpected data from register line %d", words[2])
+				data = datapath.Collect(aluOp, aluSrc, rs1Data, rs2Data)
+				op1, op2 = data[2], data[3]
+				if op1 != 12 {
+					t.Fatalf("Unexpected data from register line %d", op1)
 				}
-				if words[3] != 16 {
-					t.Fatalf("Unexpected data from register line %d", words[3])
+				if op2 != 16 {
+					t.Fatalf("Unexpected data from register line %d", op2)
 				}
+				regData <- op1 + op2
 
-				if words[4] != 16 {
-					t.Fatalf("Unexpected data from register line %d", words[4])
+				data = datapath.Collect(aluOp, aluSrc, rs1Data, rs2Data)
+				op1, op2 = data[2], data[3]
+				if op1 != 16 {
+					t.Fatalf("Unexpected data from register line %d", op1)
 				}
-				if words[5] != 4 {
-					t.Fatalf("Unexpected data from register line %d", words[5])
+				if op2 != 4 {
+					t.Fatalf("Unexpected data from register line %d", op2)
 				}
+				regData <- op1 + op2
 			},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cor := newCore()
-			register := cor.reg.(*reg.RegisterFile)
-			insts := test.prep(t, register)
-			cor.ctrl.SetPin(ctrlunit.In.Insts, insts)
+			cor, regData := test.prep(t)
 
-			dataWire := datapath.MakeWires()
-			register.SetPin(reg.In.Data, dataWire)
-
-			// wire register
+			// wire the register
 			cor.reg.SetPin(reg.In.Werf, cor.ctrl.GetPin(ctrlunit.Out.Werf))
 			cor.reg.SetPin(reg.In.RS1Addr, cor.ctrl.GetPin(ctrlunit.Out.RS1))
 			cor.reg.SetPin(reg.In.RS2Addr, cor.ctrl.GetPin(ctrlunit.Out.RS2))
 			cor.reg.SetPin(reg.In.RDAddr, cor.ctrl.GetPin(ctrlunit.Out.RD))
+			cor.reg.SetPin(reg.In.Data, regData)
 
 			if err := cor.reg.Run(); err != nil {
 				t.Fatal(err)
@@ -89,7 +117,7 @@ func TestCore_CtrlReg(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			test.eval(t, register, dataWire)
+			test.eval(t, cor, regData)
 		})
 	}
 }
