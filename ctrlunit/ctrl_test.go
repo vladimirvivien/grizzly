@@ -9,7 +9,7 @@ import (
 	"github.com/vladimirvivien/grizzly/isa"
 )
 
-func TestCtrl_I(t *testing.T) {
+func TestCtrl_R(t *testing.T) {
 	instructions := datapath.MakeWires()
 	ctrl := newCtrl()
 	ctrl.SetPin(In.Insts, instructions)
@@ -17,12 +17,12 @@ func TestCtrl_I(t *testing.T) {
 	tests := []struct {
 		name string
 		inst func() isa.Inst
-		eval func(rs1 uint32, rs2 uint32, rd uint32, aluOp uint32, werf uint32)
+		eval func(aluOp uint32, rs1 uint32, rs2 uint32, werf uint32, rd uint32)
 	}{
 		{
-			name: "R format (add)",
+			name: "R format",
 			inst: func() isa.Inst { return 0b0000000_00010_00001_000_00101_0110011 },
-			eval: func(rs1, rs2, rd, aluOp, werf uint32) {
+			eval: func(aluOp, rs1, rs2, werf, rd uint32) {
 				if aluOp != alu.Ops.Add {
 					t.Errorf("Unexpected Operation value: %b", aluOp)
 				}
@@ -56,13 +56,16 @@ func TestCtrl_I(t *testing.T) {
 
 			go func() {
 				defer close(wait)
-				test.eval(
-					<-ctrl.GetPin(Out.RS1),
-					<-ctrl.GetPin(Out.RS2),
-					<-ctrl.GetPin(Out.RD),
-					<-ctrl.GetPin(Out.ALUOp),
-					<-ctrl.GetPin(Out.Werf),
+				out := datapath.Collect(
+					ctrl.GetPin(Out.ALUOp),
+					ctrl.GetPin(Out.RS1),
+					ctrl.GetPin(Out.RS2),
+					ctrl.GetPin(Out.Imm),
+					ctrl.GetPin(Out.ALUSrc),
+					ctrl.GetPin(Out.Werf),
+					ctrl.GetPin(Out.RD),
 				)
+				test.eval(out[0], out[1], out[2],out[5], out[6])
 			}()
 
 			select {
@@ -82,12 +85,12 @@ func TestCtrl_RI(t *testing.T) {
 	tests := []struct {
 		name string
 		inst func() isa.Inst
-		eval func(rs1 uint32, imm uint32, rd uint32, aluOp uint32, werf uint32)
+		eval func(aluOp uint32, rs1 uint32, imm uint32, werf uint32, rd uint32)
 	}{
 		{
 			name: "RI format (addi)",
 			inst: func() isa.Inst { return 0b000000000010_00001_000_00101_0010011 },
-			eval: func(rs1, imm, rd, aluOp, werf uint32) {
+			eval: func(aluOp, rs1, imm, werf, rd uint32) {
 				if aluOp != alu.Ops.Add {
 					t.Errorf("Unexpected Operation value: %b", aluOp)
 				}
@@ -118,13 +121,16 @@ func TestCtrl_RI(t *testing.T) {
 
 			go func() {
 				defer close(wait)
-				test.eval(
-					<-ctrl.GetPin(Out.RS1),
-					<-ctrl.GetPin(Out.Imm),
-					<-ctrl.GetPin(Out.RD),
-					<-ctrl.GetPin(Out.ALUOp),
-					<-ctrl.GetPin(Out.Werf),
+				out := datapath.Collect(
+					ctrl.GetPin(Out.ALUOp),
+					ctrl.GetPin(Out.RS1),
+					ctrl.GetPin(Out.RS2),
+					ctrl.GetPin(Out.Imm),
+					ctrl.GetPin(Out.ALUSrc),
+					ctrl.GetPin(Out.Werf),
+					ctrl.GetPin(Out.RD),
 				)
+				test.eval(out[0], out[1], out[3],out[5], out[6])
 			}()
 
 			select {

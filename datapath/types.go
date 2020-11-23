@@ -23,7 +23,3 @@ type Word = uint32
 type Wires = chan Word
 type WireRcvd = <-chan Word
 type WireSend = chan <- Word
-
-func MakeWires() Wires {
-	return make(chan Word, 1)
-}

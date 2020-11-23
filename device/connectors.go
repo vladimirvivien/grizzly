@@ -14,13 +14,13 @@ func Mux(selPin Pin, inPins ...Pin) Pin {
 	go func() {
 		defer close(output)
 		for {
-			var value uint32
+			words := datapath.Collect(inPins...)
+			log.Printf("mux: collected inputs: %d", len(words))
 			select {
 			case sel := <-selPin:
-				select {
-				case value = <-inPins[sel]:
-					output <- value
-				}
+				val := words[sel]
+				log.Printf("mux: {sel:%d, lines:%d, value:%032b}", sel, len(inPins), val)
+				output <- val
 			}
 		}
 	}()

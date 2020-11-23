@@ -4,6 +4,9 @@ type Packet struct {
 	Word
 	Wires
 }
+func MakeWires() Wires {
+	return make(chan Word)
+}
 
 // Send sends data (word) to wires in serial order
 // and blocks on each send until received.
@@ -16,8 +19,8 @@ func Send(packets ...Packet) {
 	}
 }
 
-// Collect collects data (word) serially from wires
-// and retries until all wires successfully return data
+// Collect collects all data (word) serially from wires
+// and waits for each wires to be ready
 // TODO possible deadline to avoid long waits
 func Collect(wires ...WireRcvd) (words []Word) {
 	for _, wire := range wires {

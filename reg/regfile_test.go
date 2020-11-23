@@ -67,7 +67,7 @@ func TestRegisterFile(t *testing.T) {
 				}
 				rs2 := <-rf.GetPin(Out.RS2Data)
 				if rs2 != 0x1 {
-					t.Errorf("Unexpected RS1 data %d", rs2)
+					t.Errorf("Unexpected RS2 data %d", rs2)
 				}
 				rs1 = <-rf.GetPin(Out.RS1Data)
 				if rs1 != 0x2 {

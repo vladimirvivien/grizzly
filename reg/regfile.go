@@ -60,17 +60,18 @@ func newRegister() *RegisterFile {
 
 func (r *RegisterFile) Run() error {
 	log.Println("regfile: starting...")
+	rs1Pin := r.GetPin(In.RS1Addr)
+	rs2Pin := r.GetPin(In.RS2Addr)
+	rdPin := r.GetPin(In.RDAddr)
+	werfPin := r.GetPin(In.Werf)
+	dataPin := r.GetPin(In.Data)
+
+	// Regfile Read Loop
 	go func() {
 		defer func() {
 			close(r.rs1DataOut)
 			close(r.rs2DataOut)
 		}()
-
-		rs1Pin := r.GetPin(In.RS1Addr)
-		rs2Pin := r.GetPin(In.RS2Addr)
-		rdPin := r.GetPin(In.RDAddr)
-		werfPin := r.GetPin(In.Werf)
-		dataPin := r.GetPin(In.Data)
 
 		for {
 			// Collect address lines
@@ -82,8 +83,13 @@ func (r *RegisterFile) Run() error {
 				datapath.Packet{r.read(rs1Addr), r.rs1DataOut},
 				datapath.Packet{r.read(rs2Addr), r.rs2DataOut},
 			)
+		}
+	}()
 
-			// wait for werf (only if provided) and collect and write data
+	// Regfile Write Loop
+	go func(){
+		for {
+			// receive write-enble, then store write value
 			select {
 			case werf := <-werfPin:
 				if werf == 1 {
@@ -91,7 +97,6 @@ func (r *RegisterFile) Run() error {
 					rdAddr, data := results[0], results[1]
 					r.write(rdAddr, data)
 				}
-			default: // when werf not provided
 			}
 		}
 	}()

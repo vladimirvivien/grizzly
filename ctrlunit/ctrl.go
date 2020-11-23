@@ -107,13 +107,16 @@ func (c *Controller) Run() error {
 					// send register file ctrl and addrs
 					datapath.Send(
 						datapath.Packet{encodeAluOp(fields.Functs()), c.aluOpOut},
+
+						// reg-alu; operand select
+						datapath.Packet{fields.Rs1, c.rs1Out},
+						datapath.Packet{fields.Rs2, c.rs2Out},
+						datapath.Packet{0, c.immOut},
 						datapath.Packet{0, c.aluSrcOut},
 
-						datapath.Packet{fields.Rs1,c.rs1Out},
-						datapath.Packet{fields.Rs2,c.rs2Out},
-
-						datapath.Packet{1,c.werfOut},
-						datapath.Packet{fields.Rd,c.rdOut},
+						// alu-reg; data store
+						datapath.Packet{1, c.werfOut},
+						datapath.Packet{fields.Rd, c.rdOut},
 					)
 
 				case isa.Opcodes.RI:
@@ -129,15 +132,17 @@ func (c *Controller) Run() error {
 
 					datapath.Send(
 						datapath.Packet{encodeAluOp(fields.Functs()), c.aluOpOut},
+
+						// reg-alu; source select
+						datapath.Packet{fields.Rs1, c.rs1Out},
+						datapath.Packet{0, c.rs2Out},
+						datapath.Packet{imm, c.immOut},
 						datapath.Packet{1, c.aluSrcOut},
 
-						datapath.Packet{fields.Rs1,c.rs1Out},
-						datapath.Packet{0,c.rs2Out}, // send 0 for correct data flow
+						// alu-reg; data store
+						datapath.Packet{1, c.werfOut},
+						datapath.Packet{fields.Rd, c.rdOut},
 
-						datapath.Packet{imm,c.immOut},
-
-						datapath.Packet{1,c.werfOut},
-						datapath.Packet{fields.Rd,c.rdOut},
 					)
 				default:
 					panic(fmt.Sprintf("unsupported opcode: %0b", opcode))
