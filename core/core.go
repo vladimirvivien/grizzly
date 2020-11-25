@@ -3,8 +3,10 @@ package core
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/vladimirvivien/grizzly/alu"
+	"github.com/vladimirvivien/grizzly/clock"
 	"github.com/vladimirvivien/grizzly/ctrlunit"
 	"github.com/vladimirvivien/grizzly/device"
 	"github.com/vladimirvivien/grizzly/reg"
@@ -16,13 +18,15 @@ var (
 	}{
 		Insts: "core.insts.in",
 	}
+
+	clk = clock.New(10 *  time.Millisecond)
 )
 
 type Core struct {
 	*device.Base
 	reg  device.Type
 	alu  device.Type
-	ctrl device.Type
+	ctrl device.ClockedType
 }
 
 func New() device.Type {
@@ -55,6 +59,7 @@ func (c *Core) wireComponents() error {
 
 	// wire controller
 	c.ctrl.SetPin(ctrlunit.In.Insts, c.GetPin(In.Insts))
+	c.ctrl.SetClock(clk)
 
 	// wire register
 	c.reg.SetPin(reg.In.Werf, c.ctrl.GetPin(ctrlunit.Out.Werf))

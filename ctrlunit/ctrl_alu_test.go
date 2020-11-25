@@ -2,8 +2,10 @@ package ctrlunit
 
 import (
 	"testing"
+	"time"
 
 	"github.com/vladimirvivien/grizzly/alu"
+	"github.com/vladimirvivien/grizzly/clock"
 	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/device"
 )
@@ -12,6 +14,7 @@ func TestCtrl_ALU(t *testing.T) {
 	ctrl := newCtrl()
 	insts := datapath.MakeWires()
 	ctrl.SetPin(In.Insts, insts)
+	ctrl.SetClock(clock.New(2 * time.Millisecond))
 
 	op1 := datapath.MakeWires()
 	rd2 := datapath.MakeWires() // fake reg data2 for testing

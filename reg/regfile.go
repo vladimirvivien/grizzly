@@ -129,6 +129,7 @@ func (r *RegisterFile) write(addr uint32, data uint32) {
 // Probe is a TEST-ONLY method that is used to read
 // values from register address directly.
 func (r *RegisterFile) Probe(addr uint32) uint32 {
+	log.Printf("regfile: probing addr[%05b]", addr)
 	return r.read(addr)
 }
 

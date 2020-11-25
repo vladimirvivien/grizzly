@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vladimirvivien/grizzly/alu"
+	"github.com/vladimirvivien/grizzly/clock"
 	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/isa"
 )
@@ -13,6 +14,7 @@ func TestCtrl_R(t *testing.T) {
 	instructions := datapath.MakeWires()
 	ctrl := newCtrl()
 	ctrl.SetPin(In.Insts, instructions)
+	ctrl.SetClock(clock.New(2 * time.Millisecond))
 
 	tests := []struct {
 		name string
@@ -81,6 +83,7 @@ func TestCtrl_RI(t *testing.T) {
 	instructions := datapath.MakeWires()
 	ctrl := newCtrl()
 	ctrl.SetPin(In.Insts, instructions)
+	ctrl.SetClock(clock.New(2*time.Millisecond))
 
 	tests := []struct {
 		name string

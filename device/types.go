@@ -1,6 +1,7 @@
 package device
 
 import (
+	"github.com/vladimirvivien/grizzly/clock"
 	"github.com/vladimirvivien/grizzly/datapath"
 )
 
@@ -13,4 +14,9 @@ type Type interface {
 	GetPins() Pins
 	GetPin(PinLabel) Pin
 	SetPin(PinLabel, Pin)
+}
+
+type ClockedType interface {
+	Type
+	SetClock (clock.Clock)
 }

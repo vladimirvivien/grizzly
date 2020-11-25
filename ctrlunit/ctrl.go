@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/vladimirvivien/grizzly/clock"
 	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/device"
 	"github.com/vladimirvivien/grizzly/isa"
@@ -39,10 +40,10 @@ var (
 // It decodes the instruction and orchestrate the operation
 // on the data using ALU, register file, etc.
 
-// Data order: data is output on the following sequence:
-// data path: rdOut, rs1, rs2,
-// control path: aluOp, and werfOut
-// If not read in that order, races will be created.
+// Order:
+// The order in which data is sent to component matters
+// as it may cause deadlock if subcomponents process data
+// out of order.
 type Controller struct {
 	*device.Base
 	rdOut     datapath.Wires // regfile data address
@@ -52,10 +53,11 @@ type Controller struct {
 	aluOpOut  datapath.Wires // ALU operation
 	aluSrcOut datapath.Wires // ALU source mux selector
 	werfOut   datapath.Wires // regfile write enable file
+	clk       clock.Clock
 }
 
 // New creates a new *Controller
-func New() device.Type {
+func New() device.ClockedType {
 	return newCtrl()
 }
 
@@ -81,8 +83,21 @@ func newCtrl() *Controller {
 	return c
 }
 
+func (c *Controller) SetClock(clk clock.Clock) {
+	c.clk = clk
+}
+
 func (c *Controller) Run() error {
 	log.Println("controller: starting...")
+	if c.clk == nil {
+		panic("ctrl: missing clock")
+	}
+
+	insts := c.GetPin(In.Insts)
+	if insts == nil {
+		panic("ctrl: missing instructions")
+	}
+
 	go func() {
 		defer func() {
 			close(c.rdOut)
@@ -93,9 +108,8 @@ func (c *Controller) Run() error {
 			close(c.werfOut)
 		}()
 
-		insts := c.GetPin(In.Insts)
+		for range c.clk.Ticks() {
 
-		for {
 			select {
 			case inst := <-insts:
 				opcode := inst & 0x7F
@@ -142,7 +156,6 @@ func (c *Controller) Run() error {
 						// alu-reg; data store
 						datapath.Packet{1, c.werfOut},
 						datapath.Packet{fields.Rd, c.rdOut},
-
 					)
 				default:
 					panic(fmt.Sprintf("unsupported opcode: %0b", opcode))

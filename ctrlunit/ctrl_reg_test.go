@@ -2,7 +2,9 @@ package ctrlunit
 
 import (
 	"testing"
+	"time"
 
+	"github.com/vladimirvivien/grizzly/clock"
 	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/device"
 	"github.com/vladimirvivien/grizzly/reg"
@@ -14,6 +16,7 @@ func TestCtrl_Regfile(t *testing.T) {
 
 	insts := datapath.MakeWires()
 	ctrl.SetPin(In.Insts, insts)
+	ctrl.SetClock(clock.New(2 * time.Millisecond))
 
 	// connect controller and register
 	regfile := reg.New().(*reg.RegisterFile)
