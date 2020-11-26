@@ -27,7 +27,7 @@ func TestCore(t *testing.T) {
 				go func() {
 					insts <- 0b000000000010_00001_000_00101_0010011  // addi reg[5] <= 2, reg[1]; reg[5]=6
 					insts <- 0b0000000_00010_00101_000_00011_0110011 // add  reg[3] <= reg[5], reg[2]; reg[3]=8
-					//insts <- 0b0000000_00001_00011_001_00110_0010011 // slli reg[6] <= 1, reg[3]; reg[6]=16
+					insts <- 0b0000000_00001_00011_001_00110_0010011 // slli reg[6] <= 1, reg[3]; reg[6]=16
 					close(doneSignal)
 				}()
 				cor.SetPin(In.Insts, insts)
@@ -37,7 +37,7 @@ func TestCore(t *testing.T) {
 			regMap: map[uint32]datapath.Word{
 				0b00101: 6,
 				0b00011: 8,
-				//0b00110: 16,
+				0b00110: 16,
 			},
 		},
 	}
