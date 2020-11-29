@@ -59,7 +59,7 @@ func newRegister() *RegisterFile {
 }
 
 func (r *RegisterFile) Run() error {
-	log.Println("regfile: starting...")
+	log.Println("regfile: initializing...")
 	rs1Pin := r.GetPin(In.RS1Addr)
 	rs2Pin := r.GetPin(In.RS2Addr)
 	rdPin := r.GetPin(In.RDAddr)
