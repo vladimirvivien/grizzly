@@ -9,7 +9,7 @@ import (
 
 func TestMemory_ReadWrite(t *testing.T) {
 	size := 1024
-	mem := newMem(uint32(size))
+	mem := newMem(uint64(size))
 
 	for i := 0; i < size; i += datapath.XlenBytes {
 		if size <= i+datapath.XlenBytes {
@@ -24,8 +24,8 @@ func TestMemory_ReadWrite(t *testing.T) {
 }
 
 func TestMemory_New(t *testing.T) {
-	size := 1024
-	mem := New(datapath.Word(size))
+	size := uint64(1024)
+	mem := New(size)
 	if mem.GetPin(Out.DataRead) == nil {
 		t.Error("mem: pin DataRead not set")
 	}
@@ -36,12 +36,12 @@ func TestMemory_New(t *testing.T) {
 }
 
 func TestMemory_Run(t *testing.T) {
-	size := 1024
+	size := 1024 * 2
 	addr := datapath.MakeWires()
 	wen := datapath.MakeWires()
 	ren := datapath.MakeWires()
 	data := datapath.MakeWires()
-	mem := New(uint32(size))
+	mem := New(uint64(size))
 	mem.SetPin(In.Address, addr)
 	mem.SetPin(In.DataWrite, data)
 	mem.SetPin(In.WriteEnable, wen)
@@ -78,7 +78,7 @@ func TestMemory_Run(t *testing.T) {
 				t.Errorf("mem: unexpected value memory[%032b]=%032b", i, val)
 			}
 		}
-	case <-time.After(5*time.Millisecond):
+	case <-time.After(15*time.Millisecond):
 		t.Fatal("mem: took too long to initialize")
 	}
 }

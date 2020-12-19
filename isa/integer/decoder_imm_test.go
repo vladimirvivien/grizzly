@@ -1,4 +1,4 @@
-package ctrlunit
+package integer
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 	"github.com/vladimirvivien/grizzly/isa"
 )
 
-// TestDecodeRI tests register immediate instructions
+// TestDecoderImm tests integer immediate instructions (I-format)
 //
 // Immediate ops
 // immOut[32:20]   RS1   fn3 RD    OPCODE
@@ -15,7 +15,7 @@ import (
 // Shift ops
 // fn7     Shift RS1   fn3 RD    OPCODE
 // 0000000_00010_00001_000_00101_0110011
-func TestDecodeRI(t *testing.T) {
+func TestDecodeImm(t *testing.T) {
 	tests := []struct {
 		name                 string
 		inst                 isa.Inst
@@ -24,7 +24,7 @@ func TestDecodeRI(t *testing.T) {
 		shouldFail           bool
 	}{
 		{
-			name:   isa.Addi.Name,
+			name:   Addi.Name,
 			inst:   0b000000000010_00001_000_00101_0010011,
 			imm:    0b000000000010,
 			rs1:    0b00001,
@@ -32,7 +32,7 @@ func TestDecodeRI(t *testing.T) {
 			rd:     0b00101,
 		},
 		{
-			name:   isa.Slli.Name,
+			name:   Slli.Name,
 			inst:   0b0000000_00010_00001_001_00101_0010011,
 			funct7: 0b0000000,
 			shift:  0b00010,
@@ -41,7 +41,7 @@ func TestDecodeRI(t *testing.T) {
 			rd:     0b00101,
 		},
 		{
-			name:   isa.Slti.Name,
+			name:   Slti.Name,
 			inst:   0b000000000010_00001_010_10101_0010011,
 			imm:    0b000000000010,
 			rs1:    0b00001,
@@ -49,7 +49,7 @@ func TestDecodeRI(t *testing.T) {
 			rd:     0b10101,
 		},
 		{
-			name:   isa.Srli.Name,
+			name:   Srli.Name,
 			inst:   0b0000000_01010_00001_101_01101_0010011,
 			funct7: 0b0000000,
 			shift:  0b01010,
@@ -58,7 +58,7 @@ func TestDecodeRI(t *testing.T) {
 			rd:     0b01101,
 		},
 		{
-			name:   isa.Srai.Name,
+			name:   Srai.Name,
 			inst:   0b0100000_11011_01101_101_00101_0010011,
 			funct7: 0b0100000,
 			shift:  0b11011,
@@ -67,7 +67,7 @@ func TestDecodeRI(t *testing.T) {
 			rd:     0b00101,
 		},
 		{
-			name:   isa.Ori.Name,
+			name:   Ori.Name,
 			inst:   0b010001000010_00001_110_00101_0010011,
 			imm:    0b010001000010,
 			rs1:    0b00001,
@@ -75,7 +75,7 @@ func TestDecodeRI(t *testing.T) {
 			rd:     0b00101,
 		},
 		{
-			name:   isa.Andi.Name,
+			name:   Andi.Name,
 			inst:   0b010000000010_10101_111_10101_0010011,
 			imm:    0b010000000010,
 			rs1:    0b10101,
@@ -87,7 +87,7 @@ func TestDecodeRI(t *testing.T) {
 	riopcode := uint32(0b0010011)
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			fields := decodeRI(test.inst)
+			fields := DecodeImm(test.inst)
 			if fields.Opcode != riopcode {
 				t.Errorf("Unexpected Opcode %b for op %s: %#v", fields.Opcode, test.name, fields)
 			}

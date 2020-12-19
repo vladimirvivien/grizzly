@@ -34,14 +34,14 @@ type Memory struct {
 	dataReadOut datapath.Wires
 }
 
-func New(byteSize uint32) device.Type {
+func New(byteSize uint64) device.Type {
 	return newMem(byteSize)
 }
 
-func newMem(size uint32) *Memory {
+func newMem(size uint64) *Memory {
 	mem := &Memory{
 		Base:        device.NewBase(),
-		store:       make([]byte, int(size)),
+		store:       make([]byte, size),
 		dataReadOut: datapath.MakeWires(),
 	}
 	mem.SetPin(Out.DataRead, mem.dataReadOut)

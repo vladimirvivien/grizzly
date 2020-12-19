@@ -2,30 +2,30 @@ package ctrlunit
 
 import (
 	"github.com/vladimirvivien/grizzly/alu"
-	"github.com/vladimirvivien/grizzly/isa"
+	"github.com/vladimirvivien/grizzly/isa/integer"
 )
 
 func encodeAluOp(functs uint32) uint32 {
 	switch functs {
-	case isa.Add.Functs, isa.Addi.Functs:
+	case integer.Add.Functs, integer.Addi.Functs:
 		return alu.Ops.Add
-	case isa.Sub.Functs:
+	case integer.Sub.Functs:
 		return alu.Ops.Sub
-	case isa.Sll.Functs, isa.Slli.Functs:
+	case integer.Sll.Functs, integer.Slli.Functs:
 		return alu.Ops.Sll
-	case isa.Slt.Functs, isa.Slti.Functs:
+	case integer.Slt.Functs, integer.Slti.Functs:
 		return alu.Ops.Slt
-	case isa.Sltu.Functs, isa.Sltiu.Functs:
+	case integer.Sltu.Functs, integer.Sltiu.Functs:
 		return alu.Ops.Sltu
-	case isa.Xor.Functs, isa.Xori.Functs:
+	case integer.Xor.Functs, integer.Xori.Functs:
 		return alu.Ops.Xor
-	case isa.Srl.Functs, isa.Srli.Functs:
+	case integer.Srl.Functs, integer.Srli.Functs:
 		return alu.Ops.Srl
-	case isa.Sra.Functs, isa.Srai.Functs:
+	case integer.Sra.Functs, integer.Srai.Functs:
 		return alu.Ops.Sra
-	case isa.Or.Functs, isa.Ori.Functs:
+	case integer.Or.Functs, integer.Ori.Functs:
 		return alu.Ops.Or
-	case isa.And.Functs, isa.Andi.Functs:
+	case integer.And.Functs, integer.Andi.Functs:
 		return alu.Ops.And
 	default:
 		return 0

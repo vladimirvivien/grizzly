@@ -8,6 +8,7 @@ import (
 	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/device"
 	"github.com/vladimirvivien/grizzly/isa"
+	"github.com/vladimirvivien/grizzly/isa/integer"
 )
 
 var (
@@ -25,6 +26,8 @@ var (
 		ALUOp  device.PinLabel
 		ALUSrc device.PinLabel
 		Werf   device.PinLabel
+		MemRead device.PinLabel
+		MemWrite device.PinLabel
 	}{
 		RS1:    "ctrlunit.rs1.out",
 		RS2:    "ctrlunit.rs2.out",
@@ -53,6 +56,8 @@ type Controller struct {
 	aluOpOut  datapath.Wires // ALU operation
 	aluSrcOut datapath.Wires // ALU source mux selector
 	werfOut   datapath.Wires // regfile write enable file
+	memRead   datapath.Wires // memory read enable
+	memWrite  datapath.Wires // memory write enable
 	clk       clock.Clock
 }
 
@@ -71,6 +76,8 @@ func newCtrl() *Controller {
 		aluOpOut:  datapath.MakeWires(),
 		aluSrcOut: datapath.MakeWires(),
 		werfOut:   datapath.MakeWires(),
+		memRead:   datapath.MakeWires(),
+		memWrite:  datapath.MakeWires(),
 	}
 	c.SetPin(Out.RD, c.rdOut)
 	c.SetPin(Out.RS1, c.rs1Out)
@@ -79,6 +86,8 @@ func newCtrl() *Controller {
 	c.SetPin(Out.ALUOp, c.aluOpOut)
 	c.SetPin(Out.ALUSrc, c.aluSrcOut)
 	c.SetPin(Out.Werf, c.werfOut)
+	c.SetPin(Out.MemRead, c.memRead)
+	c.SetPin(Out.MemWrite, c.memWrite)
 
 	return c
 }
@@ -112,11 +121,13 @@ func (c *Controller) Run() error {
 
 			select {
 			case inst := <-insts:
-				opcode := inst & 0x7F
+				opcode := isa.GetInstOpcode(inst)
 
 				switch opcode {
+
+				// register integer instructions
 				case isa.Opcodes.R:
-					fields := decodeR(inst)
+					fields := integer.Decode(inst)
 
 					// send register file ctrl and addrs
 					datapath.Send(
@@ -133,8 +144,9 @@ func (c *Controller) Run() error {
 						datapath.Packet{fields.Rd, c.rdOut},
 					)
 
+				// register immediate
 				case isa.Opcodes.RI:
-					fields := decodeRI(inst)
+					fields := integer.DecodeImm(inst)
 
 					var imm uint32
 					switch fields.Funct3 {
@@ -157,6 +169,10 @@ func (c *Controller) Run() error {
 						datapath.Packet{1, c.werfOut},
 						datapath.Packet{fields.Rd, c.rdOut},
 					)
+
+				// load instruction
+				case isa.Opcodes.L:
+					//fields := load.Decode(inst)
 				default:
 					panic(fmt.Sprintf("unsupported opcode: %0b", opcode))
 				}
