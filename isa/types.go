@@ -19,7 +19,7 @@ var (
 	}{
 		R:     0b0110011,
 		RI:    0b0010011,
-		L:     0x0000011,
+		L:     0b0000011,
 		Ecall: 0x73,
 		S:     0x23,
 		SB:    0x63,
@@ -51,6 +51,7 @@ type IntegerBaseFields struct {
 func NewIntegerBaseFields() *IntegerBaseFields {
 	return &IntegerBaseFields{BaseFields: &BaseFields{}}
 }
+
 
 
 // instruction operation

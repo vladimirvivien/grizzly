@@ -29,7 +29,7 @@ func Decode(i isa.Inst) *Fields {
 	fields.Rs1 = (i >> 15) & 0x1F
 	fields.Imm = (i >> 20) & 0xFFF
 	log.Printf(
-		"decoder: decoded I fields {opcode=%07b, rd=%05b, funct3=%03b, rs1=%07b, imm=%010b}",
+		"decoder: decoded L fields {opcode=%07b, rd=%05b, funct3=%03b, rs1=%07b, imm=%010b}",
 		fields.Opcode, fields.Rd, fields.Funct3, fields.Rs1, fields.Imm,
 	)
 	return fields

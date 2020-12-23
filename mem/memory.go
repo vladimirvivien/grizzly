@@ -2,6 +2,7 @@ package mem
 
 import (
 	"encoding/binary"
+	"fmt"
 	"log"
 
 	"github.com/vladimirvivien/grizzly/datapath"
@@ -30,6 +31,7 @@ var (
 
 type Memory struct {
 	*device.Base
+	state datapath.Word
 	store       []byte
 	dataReadOut datapath.Wires
 }
@@ -63,10 +65,17 @@ func (m *Memory) Run() error {
 		for {
 			addr := <-addrPin
 			select {
-			case <-readEnPin:
+			case en := <-readEnPin:
+				if en != 1 {
+					m.dataReadOut <- m.refresh()
+					continue
+				}
 				value := m.read(addr)
 				m.dataReadOut <- value
-			case <- writeEnPin:
+			case en := <- writeEnPin:
+				if en != 1 {
+					return
+				}
 				value := <-dataWritePin
 				m.write(addr, value)
 			}
@@ -90,7 +99,14 @@ func (m *Memory) read(addr datapath.Word) (data datapath.Word) {
 		log.Printf("mem: read memory[%032b]=%032b", addr, data)
 	default:
 	}
+	m.state = data
 	return data
+}
+
+func (m *Memory) refresh() datapath.Word {
+	m.RLock()
+	defer m.RUnlock()
+	return m.state
 }
 
 func (m *Memory) write(addr, value datapath.Word) {
@@ -107,7 +123,7 @@ func (m *Memory) write(addr, value datapath.Word) {
 		log.Printf("mem: write memory[%032b]=%032b", addr, value)
 	case 64:
 		if addr & 0x7 > 0 { // 8-byte alignment
-			panic("address misaligned")
+			panic("mem: address misaligned")
 		}
 		binary.LittleEndian.PutUint32(m.store[addr:datapath.XlenBytes], value)
 	default:
@@ -116,11 +132,11 @@ func (m *Memory) write(addr, value datapath.Word) {
 
 func (m *Memory) assertAddress (addr datapath.Word) {
 	if addr > datapath.Word(len(m.store)-4) {
-		panic("mem: address out of bound")
+		panic(fmt.Sprintf("mem: address %032b out of bound", addr))
 	}
 	bound := addr+datapath.XlenBytes
 	if datapath.Word(len(m.store)) <= bound {
-		panic("mem: address out of bound")
+		panic(fmt.Sprintf("mem: address %032b out of bound", addr))
 	}
 }
 
@@ -130,10 +146,12 @@ func (m *Memory) assertAlign32(addr datapath.Word) {
 	}
 }
 
+// TestSideLoad is TEST-ONLY method used to load values directly into memory
 func (m *Memory)TestSideLoad(addr datapath.Word, val datapath.Word) {
 	m.write(addr, val)
 }
 
+// TestProbe is TEST-ONLY method used to read values directly from mem
 func (m *Memory)TestProbe(addr datapath.Word) datapath.Word {
 	return m.read(addr)
 }

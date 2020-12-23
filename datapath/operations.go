@@ -1,9 +1,14 @@
 package datapath
 
+import (
+	"log"
+)
+
 type Packet struct {
 	Word
 	Wires
 }
+
 func MakeWires() Wires {
 	return make(chan Word)
 }
@@ -23,9 +28,10 @@ func Send(packets ...Packet) {
 // and waits for each wires to be ready
 // TODO possible deadline to avoid long waits
 func Collect(wires ...WireRcvd) (words []Word) {
-	for _, wire := range wires {
+	for i, wire := range wires {
 		select {
 		case word := <-wire:
+			log.Printf("collect: wire[%d]=%032b", i, word)
 			words = append(words, word)
 		}
 	}
