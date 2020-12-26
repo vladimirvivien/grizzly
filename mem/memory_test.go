@@ -38,11 +38,13 @@ func TestMemory_New(t *testing.T) {
 func TestMemory_Run(t *testing.T) {
 	size := 1024 * 2
 	addr := datapath.MakeWires()
+	op := datapath.MakeWires()
 	wen := datapath.MakeWires()
 	ren := datapath.MakeWires()
 	data := datapath.MakeWires()
 	mem := New(uint64(size))
 	mem.SetPin(In.Address, addr)
+	mem.SetPin(In.MemOp, op)
 	mem.SetPin(In.DataWrite, data)
 	mem.SetPin(In.WriteEnable, wen)
 	mem.SetPin(In.ReadEnable, ren)
@@ -58,9 +60,12 @@ func TestMemory_Run(t *testing.T) {
 			if size <= i+datapath.XlenBytes {
 				break
 			}
-			addr <- datapath.Word(i)
-			wen <- 1
-			data <- datapath.Word(i * 4)
+			datapath.Send(
+				datapath.Packet{Word: datapath.Word(i),Wires: addr},
+				datapath.Packet{Word: Ops.Lhu, Wires:op},
+				datapath.Packet{Word: 1, Wires:wen},
+				datapath.Packet{Word: datapath.Word(i*4), Wires:data},
+			)
 		}
 	}()
 
@@ -71,14 +76,17 @@ func TestMemory_Run(t *testing.T) {
 			if size <= i+datapath.XlenBytes {
 				break
 			}
-			addr <- datapath.Word(i)
-			ren <- 1
+			datapath.Send(
+				datapath.Packet{Word: datapath.Word(i),Wires: addr},
+				datapath.Packet{Word: Ops.Lw, Wires:op},
+				datapath.Packet{Word: 1, Wires:ren},
+			)
 			val := <- dataOut
 			if val != datapath.Word(i*4) {
 				t.Errorf("mem: unexpected value memory[%032b]=%032b", i, val)
 			}
 		}
-	case <-time.After(15*time.Millisecond):
+	case <-time.After(25*time.Millisecond):
 		t.Fatal("mem: took too long to initialize")
 	}
 }
