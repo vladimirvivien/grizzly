@@ -56,9 +56,12 @@ func TestCtrl_Regfile(t *testing.T) {
 	// connect to output pins and test values
 	aluOp := ctrl.GetPin(Out.ALUOp)
 	rd1 := regfile.GetPin(reg.Out.RS1Data)
+	memOp := ctrl.GetPin(Out.MemOp)
+	memRen := ctrl.GetPin(Out.MemRen)
+	wbSel := ctrl.GetPin(Out.WBSel)
 
 	// add  reg[5]  = reg[2]=4, reg[6]=12
-	data := datapath.Collect(aluOp, rd1, mux)
+	data := datapath.Collect(aluOp, rd1, mux, memOp, memRen, wbSel)
 	regData1 := data[1]
 	muxData := data[2]
 	if regData1 != 4 {
@@ -69,7 +72,7 @@ func TestCtrl_Regfile(t *testing.T) {
 	}
 
 	// addi reg[5]  = reg[5]=16, 2
-	data = datapath.Collect(aluOp, rd1, mux)
+	data = datapath.Collect(aluOp, rd1, mux, memOp, memRen, wbSel)
 	regData1 = data[1]
 	muxData = data[2]
 	if regData1 != 16 {
@@ -80,7 +83,7 @@ func TestCtrl_Regfile(t *testing.T) {
 	}
 
 	// add  reg[7]  = reg[6]=12, reg[8]=16
-	data = datapath.Collect(aluOp, rd1, mux)
+	data = datapath.Collect(aluOp, rd1, mux, memOp, memRen, wbSel)
 	regData1 = data[1]
 	muxData = data[2]
 	if regData1 != 12 {
@@ -91,7 +94,7 @@ func TestCtrl_Regfile(t *testing.T) {
 	}
 
 	// add  reg[10] = reg[8]=16, reg[2]=4
-	data = datapath.Collect(aluOp, rd1, mux)
+	data = datapath.Collect(aluOp, rd1, mux, memOp, memRen, wbSel)
 	regData1 = data[1]
 	muxData = data[2]
 	if regData1 != 16 {

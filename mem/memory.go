@@ -12,13 +12,13 @@ import (
 var (
 	In = struct {
 		Address,
-		MemOp,
+		Operation,
 		DataWrite,
 		WriteEnable,
 		ReadEnable device.PinLabel
 	}{
 		Address:     "memory.address.in",
-		MemOp:       "memory.op.in",
+		Operation:   "memory.operation.in",
 		DataWrite:   "memory.datawrite.in",
 		WriteEnable: "memory.writeenable.in",
 		ReadEnable:  "memory.readenable.in",
@@ -70,7 +70,7 @@ func newMem(size uint64) *Memory {
 func (m *Memory) Run() error {
 	log.Println("memory: initializing...")
 	addrPin := m.GetPin(In.Address)
-	memOpPin := m.GetPin(In.MemOp)
+	memOpPin := m.GetPin(In.Operation)
 	dataWritePin := m.GetPin(In.DataWrite)
 	writeEnPin := m.GetPin(In.WriteEnable)
 	readEnPin := m.GetPin(In.ReadEnable)

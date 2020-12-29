@@ -10,7 +10,7 @@ import (
 	"github.com/vladimirvivien/grizzly/mem"
 )
 
-func TestCtrl_Mem(t *testing.T){
+func TestCtrl_MemLoad(t *testing.T){
 	ctrl := newCtrl()
 	insts := datapath.MakeWires()
 	ctrl.SetPin(In.Insts, insts)
@@ -21,23 +21,33 @@ func TestCtrl_Mem(t *testing.T){
 	aluMemConnect := device.Fanout(aluOutput, 2)
 
 	memory := mem.New(1024).(*mem.Memory)
-	memory.SetPin(mem.In.WriteEnable, ctrl.GetPin(Out.MemWrite))
-	memory.SetPin(mem.In.ReadEnable, ctrl.GetPin(Out.MemRead))
+	memory.SetPin(mem.In.WriteEnable, ctrl.GetPin(Out.MemWen))
+	memory.SetPin(mem.In.ReadEnable, ctrl.GetPin(Out.MemRen))
+	memory.SetPin(mem.In.Operation, ctrl.GetPin(Out.MemOp))
 	memory.SetPin(mem.In.Address, aluMemConnect[0])
 	// wbMux: outputs the register write back value either from alu or from mem
 	wbMux := device.Mux(ctrl.GetPin(Out.WBSel), aluMemConnect[1], memory.GetPin(mem.Out.DataRead))
 
 	go func() {
+		// load byte
 		memory.TestSideLoad(1000, 24)
 		insts <- 0b000010000000_00000_000_00101_0000011 // load
 		aluOutput <- 1000 // effective addr
 
+		// load half word
 		memory.TestSideLoad(844, 2021)
-		insts <- 0b000100000001_00000_000_00101_0000011 // load
+		insts <- 0b000100000001_00000_001_00101_0000011 // load
 		aluOutput <- 844 // effective addr
 
+		// add
 		insts <- 0b0000000_01000_00110_000_00111_0110011 // add
 		aluOutput <- 12010 // alu output
+
+		// load word
+		memory.TestSideLoad(200, 423678)
+		insts <- 0b000100010001_00000_110_00101_0000011 // load
+		aluOutput <- 200 // effective addr
+
 	}()
 
 	// start components
@@ -86,6 +96,17 @@ func TestCtrl_Mem(t *testing.T){
 	// check alu out == write back mux value
 	if data[7] != 12010 {
 		t.Errorf("unexpected write back value: %032b", data[7])
+	}
+
+	// load mem[200]
+	data = datapath.Collect(aluOp, rs1, rs2, imm, aluSrc, werf, rd, wbMux)
+	// check imm value 257
+	if data[3] != 273 {
+		t.Errorf("unexpected immediate: %012b", data[6])
+	}
+	// check mem data
+	if data[7] != 423678 {
+		t.Errorf("unexpected memory data: %032b", data[7])
 	}
 
 }

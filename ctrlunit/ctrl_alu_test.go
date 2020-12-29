@@ -46,33 +46,34 @@ func TestCtrl_ALU(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rs1, rs2, memRead, werf, rd :=
+	rs1, rs2, memOp, memRead, werf, rd :=
 		ctrl.GetPin(Out.RS1),
 		ctrl.GetPin(Out.RS2),
-		ctrl.GetPin(Out.MemRead),
+		ctrl.GetPin(Out.MemOp),
+		ctrl.GetPin(Out.MemRen),
 		ctrl.GetPin(Out.Werf),
 		ctrl.GetPin(Out.RD)
 
 	// process inst 1, add
-	datapath.Collect(rs1, rs2, memRead, werf, rd)
+	datapath.Collect(rs1, rs2, memOp, memRead, werf, rd)
 	if result := datapath.Collect(wbMux)[0]; result != 16 {
 		t.Fatal("unexpected alu result:", result)
 	}
 
 	// process inst 2, addi
-	datapath.Collect(rs1, rs2, memRead, werf, rd)
+	datapath.Collect(rs1, rs2, memOp, memRead, werf, rd)
 	if result := datapath.Collect(wbMux)[0]; result != 18 {
 		t.Fatal("unexpected alu result:", result)
 	}
 
 	// process inst 3, add
-	datapath.Collect(rs1, rs2, memRead, werf, rd)
+	datapath.Collect(rs1, rs2, memOp, memRead, werf, rd)
 	if result := datapath.Collect(wbMux)[0]; result != 28 {
 		t.Fatal("unexpected alu result:", result)
 	}
 
 	// process inst 4, add
-	datapath.Collect(rs1, rs2, memRead, werf, rd)
+	datapath.Collect(rs1, rs2, memOp, memRead, werf, rd)
 	if result := datapath.Collect(wbMux)[0]; result != 20 {
 		t.Fatal("unexpected alu result:", result)
 	}

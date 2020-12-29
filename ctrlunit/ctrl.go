@@ -20,27 +20,29 @@ var (
 	}
 
 	Out = struct {
-		RS1      device.PinLabel
-		RS2      device.PinLabel
-		RD       device.PinLabel
-		Imm      device.PinLabel
-		ALUOp    device.PinLabel
-		ALUSrc   device.PinLabel
-		Werf     device.PinLabel
-		MemRead  device.PinLabel
-		MemWrite device.PinLabel
-		WBSel    device.PinLabel
+		RS1    device.PinLabel
+		RS2    device.PinLabel
+		RD     device.PinLabel
+		Imm    device.PinLabel
+		ALUOp  device.PinLabel
+		ALUSrc device.PinLabel
+		Werf   device.PinLabel
+		MemRen device.PinLabel
+		MemWen device.PinLabel
+		MemOp  device.PinLabel
+		WBSel  device.PinLabel
 	}{
-		RS1:      "ctrlunit.rs1.out",
-		RS2:      "ctrlunit.rs2.out",
-		RD:       "ctrlunit.rd.out",
-		Imm:      "ctrlunit.imm.out",
-		ALUOp:    "ctrlunit.aluop.out",
-		ALUSrc:   "ctrlunit.alusrc.out",
-		Werf:     "ctrlunit.werf.out",
-		MemRead:  "ctrlunit.memread.out",
-		MemWrite: "ctrlunit.memwrite.out",
-		WBSel:    "ctrlunit.wbsel.out",
+		RS1:    "ctrlunit.rs1.out",
+		RS2:    "ctrlunit.rs2.out",
+		RD:     "ctrlunit.rd.out",
+		Imm:    "ctrlunit.imm.out",
+		ALUOp:  "ctrlunit.aluop.out",
+		ALUSrc: "ctrlunit.alusrc.out",
+		Werf:   "ctrlunit.werf.out",
+		MemRen: "ctrlunit.memreadenable.out",
+		MemWen: "ctrlunit.memwriteenable.out",
+		MemOp:  "ctrlunit.memoperation.out",
+		WBSel:  "ctrlunit.wbsel.out",
 	}
 )
 
@@ -54,17 +56,18 @@ var (
 // out of order.
 type Controller struct {
 	*device.Base
-	rdOut       datapath.Wires // regfile data address
-	rs1Out      datapath.Wires // regfile select addr 1
-	rs2Out      datapath.Wires // regfile select addr 2
-	immOut      datapath.Wires // immediate value
-	aluOpOut    datapath.Wires // ALU operation
-	aluSrcOut   datapath.Wires // ALU source mux selector
-	werfOut     datapath.Wires // regfile write enable file
-	memReadOut  datapath.Wires // memory read enable
-	memWriteOut datapath.Wires // memory write enable
-	wbSelOut    datapath.Wires // register write-back selector
-	clk         clock.Clock
+	rdOut     datapath.Wires // regfile data address
+	rs1Out    datapath.Wires // regfile select addr 1
+	rs2Out    datapath.Wires // regfile select addr 2
+	immOut    datapath.Wires // immediate value
+	aluOpOut  datapath.Wires // ALU operation
+	aluSrcOut datapath.Wires // ALU source mux selector
+	werfOut   datapath.Wires // regfile write enable file
+	memRenOut datapath.Wires // memory read enable
+	memWenOut datapath.Wires // memory write enable
+	memOpOut  datapath.Wires // memory operation control
+	wbSelOut  datapath.Wires // register write-back selector
+	clk       clock.Clock
 }
 
 // New creates a new *Controller
@@ -74,17 +77,18 @@ func New() device.ClockedType {
 
 func newCtrl() *Controller {
 	c := &Controller{
-		Base:        device.NewBase(),
-		rdOut:       datapath.MakeWires(),
-		rs1Out:      datapath.MakeWires(),
-		rs2Out:      datapath.MakeWires(),
-		immOut:      datapath.MakeWires(),
-		aluOpOut:    datapath.MakeWires(),
-		aluSrcOut:   datapath.MakeWires(),
-		werfOut:     datapath.MakeWires(),
-		memReadOut:  datapath.MakeWires(),
-		memWriteOut: datapath.MakeWires(),
-		wbSelOut:    datapath.MakeWires(),
+		Base:      device.NewBase(),
+		rdOut:     datapath.MakeWires(),
+		rs1Out:    datapath.MakeWires(),
+		rs2Out:    datapath.MakeWires(),
+		immOut:    datapath.MakeWires(),
+		aluOpOut:  datapath.MakeWires(),
+		aluSrcOut: datapath.MakeWires(),
+		werfOut:   datapath.MakeWires(),
+		memRenOut: datapath.MakeWires(),
+		memWenOut: datapath.MakeWires(),
+		memOpOut:  datapath.MakeWires(),
+		wbSelOut:  datapath.MakeWires(),
 	}
 	c.SetPin(Out.RD, c.rdOut)
 	c.SetPin(Out.RS1, c.rs1Out)
@@ -93,8 +97,9 @@ func newCtrl() *Controller {
 	c.SetPin(Out.ALUOp, c.aluOpOut)
 	c.SetPin(Out.ALUSrc, c.aluSrcOut)
 	c.SetPin(Out.Werf, c.werfOut)
-	c.SetPin(Out.MemRead, c.memReadOut)
-	c.SetPin(Out.MemWrite, c.memWriteOut)
+	c.SetPin(Out.MemRen, c.memRenOut)
+	c.SetPin(Out.MemWen, c.memWenOut)
+	c.SetPin(Out.MemOp, c.memOpOut)
 	c.SetPin(Out.WBSel, c.wbSelOut)
 
 	return c
@@ -123,8 +128,9 @@ func (c *Controller) Run() error {
 			close(c.aluOpOut)
 			close(c.aluSrcOut)
 			close(c.werfOut)
-			close(c.memReadOut)
-			close(c.memWriteOut)
+			close(c.memRenOut)
+			close(c.memWenOut)
+			close(c.memOpOut)
 			close(c.wbSelOut)
 		}()
 
@@ -151,7 +157,8 @@ func (c *Controller) Run() error {
 						datapath.Packet{0, c.aluSrcOut},
 
 						// memory
-						datapath.Packet{0, c.memReadOut},
+						datapath.Packet{fields.Funct3, c.memOpOut},
+						datapath.Packet{0, c.memRenOut},
 
 						// write back mux
 						datapath.Packet{0, c.wbSelOut},
@@ -183,7 +190,8 @@ func (c *Controller) Run() error {
 						datapath.Packet{1, c.aluSrcOut},
 
 						// memory
-						datapath.Packet{0, c.memReadOut},
+						datapath.Packet{fields.Funct3, c.memOpOut},
+						datapath.Packet{0, c.memRenOut},
 
 						// alu-mem write back mux
 						datapath.Packet{0, c.wbSelOut},
@@ -206,7 +214,8 @@ func (c *Controller) Run() error {
 						datapath.Packet{1, c.aluSrcOut},
 
 						// memory
-						datapath.Packet{1, c.memReadOut},
+						datapath.Packet{fields.Funct3, c.memOpOut},
+						datapath.Packet{1, c.memRenOut},
 						datapath.Packet{1, c.wbSelOut},
 
 						// mem-reg

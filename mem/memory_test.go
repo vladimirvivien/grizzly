@@ -44,7 +44,7 @@ func TestMemory_Run(t *testing.T) {
 	data := datapath.MakeWires()
 	mem := New(uint64(size))
 	mem.SetPin(In.Address, addr)
-	mem.SetPin(In.MemOp, op)
+	mem.SetPin(In.Operation, op)
 	mem.SetPin(In.DataWrite, data)
 	mem.SetPin(In.WriteEnable, wen)
 	mem.SetPin(In.ReadEnable, ren)
@@ -62,7 +62,7 @@ func TestMemory_Run(t *testing.T) {
 			}
 			datapath.Send(
 				datapath.Packet{Word: datapath.Word(i),Wires: addr},
-				datapath.Packet{Word: Ops.Lhu, Wires:op},
+				datapath.Packet{Word: Ops.Lw, Wires:op},
 				datapath.Packet{Word: 1, Wires:wen},
 				datapath.Packet{Word: datapath.Word(i*4), Wires:data},
 			)
