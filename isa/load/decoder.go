@@ -18,8 +18,9 @@ func newFields() *Fields {
 
 // Decode decodes load instruction format
 //
-//   imm[31:20]   RS1   fn3 RD    OPCODE
-//   000000000000_00000_xxx_00000_0000011
+// 31............20.....15...12.....07.......0
+//   imm[11:0]     RS1    fn3  RD     OPCODE
+//   000000000000__00000__xxx__00000__0000011
 //
 func Decode(i isa.Inst) *Fields {
 	fields := newFields()

@@ -21,8 +21,10 @@ func (f *Fields) Functs() uint32 {
 
 // Decode decodes integer format instructions:
 //
-//   fn7     RS2   RS1   fn3 RD    OPCODE
-//   0000000_00010_00001_000_00101_0110011
+// 31.......25.....20.....15...12.....07.......0
+//   fn7      RS2    RS1    fn3  RD     OPCODE
+//   0000000__00010__00001__000__00101__0110011
+//
 func Decode(i isa.Inst) *Fields {
 	fields := newFields()
 	fields.Opcode = i & 0x7F
