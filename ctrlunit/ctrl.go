@@ -134,6 +134,11 @@ func (c *Controller) Run() error {
 			close(c.wbSelOut)
 		}()
 
+		var (
+			functs, rd, funct3, rs1, rs2, imm  uint32
+			aluOp, aluSrc, memRen, wbSel, werf uint32
+		)
+
 		for range c.clk.Ticks() {
 
 			select {
@@ -141,38 +146,28 @@ func (c *Controller) Run() error {
 				opcode := isa.GetInstOpcode(inst)
 
 				switch opcode {
-
 				// register integer instructions
 				case isa.Opcodes.R:
 					fields := integer.Decode(inst)
 
-					// send register file ctrl and addrs
-					datapath.Send(
-						datapath.Packet{encodeAluOp(fields.Functs()), c.aluOpOut},
+					functs = fields.Functs()
+					rd = fields.Rd
+					funct3 = fields.Funct3
+					rs1 = fields.Rs1
+					rs2 = fields.Rs2
+					imm = 0
+					// controls
+					aluOp = encodeAluOp(functs)
+					aluSrc = 0
+					memRen = 0
+					wbSel = 0
+					werf = 1
 
-						// reg-alu; operand select
-						datapath.Packet{fields.Rs1, c.rs1Out},
-						datapath.Packet{fields.Rs2, c.rs2Out},
-						datapath.Packet{0, c.immOut},
-						datapath.Packet{0, c.aluSrcOut},
-
-						// memory
-						datapath.Packet{fields.Funct3, c.memOpOut},
-						datapath.Packet{0, c.memRenOut},
-
-						// write back mux
-						datapath.Packet{0, c.wbSelOut},
-
-						// alu-mem reg writeback
-						datapath.Packet{1, c.werfOut},
-						datapath.Packet{fields.Rd, c.rdOut},
-					)
 
 				// register immediate
 				case isa.Opcodes.RI:
 					fields := integer.DecodeImm(inst)
 
-					var imm uint32
 					switch fields.Funct3 {
 					case 0b001, 0b101:
 						imm = fields.Shift
@@ -180,52 +175,60 @@ func (c *Controller) Run() error {
 						imm = fields.Imm
 					}
 
-					datapath.Send(
-						datapath.Packet{encodeAluOp(fields.Functs()), c.aluOpOut},
-
-						// reg-alu; source select
-						datapath.Packet{fields.Rs1, c.rs1Out},
-						datapath.Packet{0, c.rs2Out},
-						datapath.Packet{imm, c.immOut},
-						datapath.Packet{1, c.aluSrcOut},
-
-						// memory
-						datapath.Packet{fields.Funct3, c.memOpOut},
-						datapath.Packet{0, c.memRenOut},
-
-						// alu-mem write back mux
-						datapath.Packet{0, c.wbSelOut},
-
-						// alu-mem; reg write back
-						datapath.Packet{1, c.werfOut},
-						datapath.Packet{fields.Rd, c.rdOut},
-					)
+					functs = fields.Functs()
+					rd = fields.Rd
+					funct3 = fields.Funct3
+					rs1 = fields.Rs1
+					rs2 = 0
+					// controls
+					aluOp = encodeAluOp(functs)
+					aluSrc = 1
+					memRen = 0
+					wbSel = 0
+					werf = 1
 
 				// load instruction
 				case isa.Opcodes.L:
 					fields := load.Decode(inst)
-					datapath.Send(
-						datapath.Packet{encodeAluOp(fields.Funct3), c.aluOpOut},
 
-						// reg-alu; source select
-						datapath.Packet{fields.Rs1, c.rs1Out},
-						datapath.Packet{0, c.rs2Out},
-						datapath.Packet{fields.Imm, c.immOut},
-						datapath.Packet{1, c.aluSrcOut},
+					functs = 0
+					rd = fields.Rd
+					funct3 = fields.Funct3
+					rs1 = fields.Rs1
+					rs2 = 0
+					imm = fields.Imm
+					// controls
+					aluOp = encodeAluOp(funct3)
+					aluSrc = 1
+					memRen = 1
+					wbSel = 1
+					werf = 1
 
-						// memory
-						datapath.Packet{fields.Funct3, c.memOpOut},
-						datapath.Packet{1, c.memRenOut},
-						datapath.Packet{1, c.wbSelOut},
-
-						// mem-reg
-						datapath.Packet{1, c.werfOut},
-						datapath.Packet{fields.Rd, c.rdOut},
-					)
 				default:
 					panic(fmt.Sprintf("unsupported opcode: %07b", opcode))
 				}
 
+				// send to components
+				datapath.Send(
+					datapath.Packet{aluOp, c.aluOpOut},
+
+					// reg-alu; source select
+					datapath.Packet{rs1, c.rs1Out},
+					datapath.Packet{rs2, c.rs2Out},
+					datapath.Packet{imm, c.immOut},
+					datapath.Packet{aluSrc, c.aluSrcOut},
+
+					// memory
+					datapath.Packet{funct3, c.memOpOut},
+					datapath.Packet{memRen, c.memRenOut},
+
+					// alu-mem write back mux
+					datapath.Packet{wbSel, c.wbSelOut},
+
+					// reg writeback
+					datapath.Packet{werf, c.werfOut},
+					datapath.Packet{rd, c.rdOut},
+				)
 			}
 		}
 	}()

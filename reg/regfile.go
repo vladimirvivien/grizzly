@@ -92,6 +92,9 @@ func (r *RegisterFile) Run() error {
 			// receive write-enble, then store write value
 			select {
 			case werf := <-werfPin:
+				if werf == 0 {
+
+				}
 				if werf == 1 {
 					results := datapath.Collect(rdPin, dataPin)
 					rdAddr, data := results[0], results[1]
