@@ -50,7 +50,7 @@ func TestMux(t *testing.T) {
 func TestFanout(t *testing.T) {
 	inWire := datapath.MakeWires()
 	fanCount := 4
-	outWires := Fanout(inWire, fanCount)
+	outWires := Connector(inWire, fanCount)
 	waiter := make(chan struct{})
 
 	go func() {
@@ -88,6 +88,6 @@ func TestFanout(t *testing.T) {
 	select {
 	case <-waiter:
 	case <-time.After(5000 * time.Millisecond):
-		t.Fatal("Fanout test took too long")
+		t.Fatal("Connector test took too long")
 	}
 }

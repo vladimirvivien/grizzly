@@ -27,9 +27,10 @@ func Mux(selPin Pin, inPins ...Pin) Pin {
 	return output
 }
 
-// Fanout transfer value read from inPin to output
-func Fanout(inPin Pin, fanSize int) (output []Pin) {
-	wires := make([]datapath.Wires, fanSize)
+// Connector creates size number of output pins and
+// copies values from inPin to all output
+func Connector(inPin Pin, size int) (output []Pin) {
+	wires := make([]datapath.Wires, size)
 
 	// connect wires to output pins
 	for i := range wires {

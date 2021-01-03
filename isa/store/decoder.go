@@ -8,7 +8,9 @@ import (
 
 // LoadFields instruction fields for load instruction
 type Fields struct {
-	*isa.IntegerBaseFields
+	*isa.BaseFields
+	Funct3 uint32
+	Rs1    uint32
 	Rs2 uint32
 	Imm uint32
 	hiImm uint32
@@ -16,7 +18,7 @@ type Fields struct {
 }
 
 func newFields() *Fields {
-	return &Fields{IntegerBaseFields: isa.NewIntegerBaseFields()}
+	return &Fields{BaseFields: &isa.BaseFields{}}
 }
 
 // Decode decodes store instruction format

@@ -36,13 +36,19 @@ var (
 		Lbu,
 		Lh,
 		Lhu,
-		Lw uint32
+		Lw,
+		Sb,
+		Sh,
+		Sw uint32
 	}{
 		Lb:  0b_000,
 		Lbu: 0b_100,
 		Lh:  0b_001,
 		Lhu: 0b_101,
 		Lw:  0b_110,
+		Sb:  0b_000,
+		Sh:  0b_001,
+		Sw:  0b_010,
 	}
 )
 
@@ -86,18 +92,28 @@ func (m *Memory) Run() error {
 
 			select {
 			case en := <-readEnPin:
-				if en != 1 {
+				// This case is hit for both non-memory and Load instructions.
+				// When non-mem instructions are executed, read-enable = 0 and
+				// it allows data to stream through the memory and back
+				// to register to avoid blocking.
+				if en == 0 {
 					m.dataReadOut <- m.refresh()
 					continue
 				}
+
+				// For Load mem instructions, read-enable = 1, then the memory
+				// is actually carried out.
 				value := m.read(addr, memOp)
 				m.dataReadOut <- value
-			case en := <-writeEnPin:
-				if en != 1 {
-					return
-				}
+
+			case <-writeEnPin:
+				// Write enabled is sent only when instructions is for store
 				value := <-dataWritePin
-				m.write(addr, value)
+				m.write(addr, value, memOp)
+
+				// Always send data to the mem-output to ensure bit stream continuity
+				// out of the mem component to avoid deadlock
+				m.dataReadOut <- m.refresh()
 			}
 		}
 	}()
@@ -114,7 +130,7 @@ func (m *Memory) read(addr datapath.Word, op uint32) (data datapath.Word) {
 	switch datapath.Xlen {
 	case 32:
 		m.assertAlign32(addr)
-		buf := m.store[addr : (addr+datapath.XlenBytes)+1]
+		buf := m.store[addr : addr+datapath.XlenBytes]
 		data = binary.LittleEndian.Uint32(buf)
 		log.Printf("mem: read memory[%032b]=%032b", addr, data)
 	default:
@@ -147,23 +163,35 @@ func (m *Memory) refresh() datapath.Word {
 	return m.state
 }
 
-func (m *Memory) write(addr, value datapath.Word) {
+func (m *Memory) write(addr, value datapath.Word, op uint32) {
 	m.Lock()
 	defer m.Unlock()
 
 	m.assertAddress(addr)
 
+	// apply store operation
+	var data datapath.Word
+	switch op {
+	case Ops.Sb:
+		data = value & 0xFF
+	case Ops.Sh:
+		data = value & 0xFFFF
+	default:
+		data = value
+	}
+
 	switch datapath.Xlen {
 	case 32:
 		m.assertAlign32(addr)
-		buf := m.store[addr : (addr+datapath.XlenBytes)+1]
-		binary.LittleEndian.PutUint32(buf, value)
-		log.Printf("mem: write memory[%032b]=%032b", addr, value)
+		buf := m.store[addr : addr+datapath.XlenBytes]
+		binary.LittleEndian.PutUint32(buf, data)
+		log.Printf("mem: write memory[%032b]=%032b", addr, data)
 	case 64:
 		if addr&0x7 > 0 { // 8-byte alignment
 			panic("mem: address misaligned")
 		}
-		binary.LittleEndian.PutUint32(m.store[addr:datapath.XlenBytes], value)
+		binary.LittleEndian.PutUint32(m.store[addr:datapath.XlenBytes], data)
+		log.Printf("mem: write memory[%064b]=%064b", addr, data)
 	default:
 	}
 }
@@ -173,7 +201,7 @@ func (m *Memory) assertAddress(addr datapath.Word) {
 		panic(fmt.Sprintf("mem: address %032b out of bound", addr))
 	}
 	bound := addr + datapath.XlenBytes
-	if datapath.Word(len(m.store)) <= bound {
+	if bound > datapath.Word(len(m.store)) {
 		panic(fmt.Sprintf("mem: address %032b out of bound", addr))
 	}
 }
@@ -186,7 +214,7 @@ func (m *Memory) assertAlign32(addr datapath.Word) {
 
 // TestSideLoad is TEST-ONLY method used to load values directly into memory
 func (m *Memory) TestSideLoad(addr datapath.Word, val datapath.Word) {
-	m.write(addr, val)
+	m.write(addr, val, Ops.Lw)
 }
 
 // TestProbe is TEST-ONLY method used to read values directly from mem

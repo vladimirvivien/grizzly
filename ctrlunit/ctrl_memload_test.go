@@ -18,7 +18,7 @@ func TestCtrl_MemLoad(t *testing.T){
 
 	aluOutput := datapath.MakeWires() // simulates ALU result
 	// aluMemConnect splits ALU output into 1) a mem addr 2) or bypass to register
-	aluMemConnect := device.Fanout(aluOutput, 2)
+	aluMemConnect := device.Connector(aluOutput, 2)
 
 	memory := mem.New(1024).(*mem.Memory)
 	memory.SetPin(mem.In.WriteEnable, ctrl.GetPin(Out.MemWen))

@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/vladimirvivien/grizzly/alu"
 	"github.com/vladimirvivien/grizzly/clock"
 	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/device"
 	"github.com/vladimirvivien/grizzly/isa"
 	"github.com/vladimirvivien/grizzly/isa/integer"
 	"github.com/vladimirvivien/grizzly/isa/load"
+	"github.com/vladimirvivien/grizzly/isa/store"
 )
 
 var (
@@ -135,8 +137,9 @@ func (c *Controller) Run() error {
 		}()
 
 		var (
-			functs, rd, funct3, rs1, rs2, imm  uint32
-			aluOp, aluSrc, memRen, wbSel, werf uint32
+			functs, rd, funct3, rs1, rs2, imm          uint32
+			aluOp, aluSrc, memRen, memWen, wbSel, werf uint32
+			memEnableCtrl                              datapath.Packet
 		)
 
 		for range c.clk.Ticks() {
@@ -163,6 +166,7 @@ func (c *Controller) Run() error {
 					wbSel = 0
 					werf = 1
 
+					memEnableCtrl = datapath.Packet{memRen, c.memRenOut}
 
 				// register immediate
 				case isa.Opcodes.RI:
@@ -187,6 +191,9 @@ func (c *Controller) Run() error {
 					wbSel = 0
 					werf = 1
 
+					// mem read enable
+					memEnableCtrl = datapath.Packet{memRen, c.memRenOut}
+
 				// load instruction
 				case isa.Opcodes.L:
 					fields := load.Decode(inst)
@@ -198,12 +205,34 @@ func (c *Controller) Run() error {
 					rs2 = 0
 					imm = fields.Imm
 					// controls
-					aluOp = encodeAluOp(funct3)
+					aluOp = encodeAluOp(alu.Ops.Add)
 					aluSrc = 1
 					memRen = 1
 					wbSel = 1
 					werf = 1
 
+					// mem read enable
+					memEnableCtrl = datapath.Packet{memRen, c.memRenOut}
+
+				// Store instruction
+				case isa.Opcodes.S:
+					fields := store.Decode(inst)
+
+					functs = 0
+					rd = 0
+					funct3 = fields.Funct3
+					rs1 = fields.Rs1
+					rs2 = fields.Rs2
+					imm = fields.Imm
+					// controls
+					aluOp = encodeAluOp(alu.Ops.Add)
+					aluSrc = 1
+					memWen = 1
+					wbSel = 0
+					werf = 0
+
+					// mem write enable
+					memEnableCtrl = datapath.Packet{memWen, c.memWenOut}
 				default:
 					panic(fmt.Sprintf("unsupported opcode: %07b", opcode))
 				}
@@ -220,7 +249,7 @@ func (c *Controller) Run() error {
 
 					// memory
 					datapath.Packet{funct3, c.memOpOut},
-					datapath.Packet{memRen, c.memRenOut},
+					memEnableCtrl,
 
 					// alu-mem write back mux
 					datapath.Packet{wbSel, c.wbSelOut},

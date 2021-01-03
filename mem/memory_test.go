@@ -60,12 +60,14 @@ func TestMemory_Run(t *testing.T) {
 			if size <= i+datapath.XlenBytes {
 				break
 			}
+			// write data to memory
 			datapath.Send(
 				datapath.Packet{Word: datapath.Word(i),Wires: addr},
 				datapath.Packet{Word: Ops.Lw, Wires:op},
 				datapath.Packet{Word: 1, Wires:wen},
 				datapath.Packet{Word: datapath.Word(i*4), Wires:data},
 			)
+			<-mem.GetPin(Out.DataRead) // flush out data read wires
 		}
 	}()
 
@@ -76,6 +78,7 @@ func TestMemory_Run(t *testing.T) {
 			if size <= i+datapath.XlenBytes {
 				break
 			}
+			// read from memory
 			datapath.Send(
 				datapath.Packet{Word: datapath.Word(i),Wires: addr},
 				datapath.Packet{Word: Ops.Lw, Wires:op},
@@ -86,7 +89,7 @@ func TestMemory_Run(t *testing.T) {
 				t.Errorf("mem: unexpected value memory[%032b]=%032b", i, val)
 			}
 		}
-	case <-time.After(25*time.Millisecond):
+	case <-time.After(70*time.Millisecond):
 		t.Fatal("mem: took too long to initialize")
 	}
 }

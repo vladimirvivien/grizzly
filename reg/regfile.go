@@ -87,19 +87,18 @@ func (r *RegisterFile) Run() error {
 	}()
 
 	// Regfile Write Loop
-	go func(){
+	go func() {
 		for {
-			// receive write-enble, then store write value
+			// receive write-enble reg file (werf) control
+			// then only store value if is set to 1
 			select {
 			case werf := <-werfPin:
+				results := datapath.Collect(rdPin, dataPin)
 				if werf == 0 {
-
+					continue
 				}
-				if werf == 1 {
-					results := datapath.Collect(rdPin, dataPin)
-					rdAddr, data := results[0], results[1]
-					r.write(rdAddr, data)
-				}
+				rdAddr, data := results[0], results[1]
+				r.write(rdAddr, data)
 			}
 		}
 	}()
