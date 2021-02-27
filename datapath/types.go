@@ -16,12 +16,15 @@ package datapath
 //
 // This change would allow Grizzly to support different implementations of the RISCV
 // ISA including compressed instructions based on the size of XLEN.
-const Xlen = 32
-const XlenBytes = Xlen/8
+const XLEN = 32
+const Width32 = 32
+const Width64 = 64
 
 // type Word = [Xlen]byte
 
 type Word = uint32
+type DoubleWord = uint64
+
 type Wires = chan Word
 type WireRcvd = <-chan Word
 type WireSend = chan <- Word
