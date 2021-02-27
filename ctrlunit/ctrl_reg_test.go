@@ -26,7 +26,7 @@ func TestCtrl_Regfile(t *testing.T) {
 	regfile.SetPin(reg.In.RS2Addr, ctrl.GetPin(Out.RS2))
 	regfile.SetPin(reg.In.RDAddr, ctrl.GetPin(Out.RD))
 	regfile.SetPin(reg.In.Data, regData)
-	mux := device.Mux(ctrl.GetPin(Out.ALUSrc), regfile.GetPin(reg.Out.RS2Data), ctrl.GetPin(Out.Imm))
+	mux := device.Mux("alu-op", ctrl.GetPin(Out.ALUSrc), regfile.GetPin(reg.Out.RS2Data), ctrl.GetPin(Out.Imm))
 
 	// prepare register
 	regfile.SideLoad(2, 4)
@@ -36,13 +36,13 @@ func TestCtrl_Regfile(t *testing.T) {
 	// R/I instructions
 	go func() {
 		insts <- 0b0000000_00110_00010_000_00101_0110011 // add  reg[5]  = reg[2]=4, reg[6]=12
-		regData <- 4 + 12
-		insts <- 0b000000000010_00101_000_00101_0010011  // addi reg[5]  = reg[5]=16, 2
-		regData <- 5 + 18
+		regData <- 4 + 12 // alu result
+		insts <- 0b000000000010_00101_000_00100_0010011  // addi reg[4]  = reg[5]=16, 2
+		regData <- 16+2 // alu result
 		insts <- 0b0000000_01000_00110_000_00111_0110011 // add  reg[7]  = reg[6]=12, reg[8]=16
-		regData <- 12+16
+		regData <- 12+16 // alu result
 		insts <- 0b0000000_00010_01000_000_01010_0110011 // add  reg[10] = reg[8]=16, reg[2]=4
-		regData <- 16+4
+		regData <- 16+4 // alu result
 	}()
 
 	// start components
@@ -60,47 +60,49 @@ func TestCtrl_Regfile(t *testing.T) {
 	memRen := ctrl.GetPin(Out.MemRen)
 	wbSel := ctrl.GetPin(Out.WBSel)
 
+	rcvr := datapath.NewReceiver("test:ctrl:reg")
+
 	// add  reg[5]  = reg[2]=4, reg[6]=12
-	data := datapath.Collect(aluOp, rd1, mux, memOp, memRen, wbSel)
-	regData1 := data[1]
-	muxData := data[2]
-	if regData1 != 4 {
-		t.Fatalf("unexpected reg data1 %d", regData1)
+	data := rcvr.R(aluOp, rd1, mux, memOp, memRen, wbSel)
+	aluInput1 := data[1]
+	aluInput2 := data[2] // reg-alu mux output
+	if aluInput1 != 4 {
+		t.Fatalf("unexpected reg data1 %d", aluInput1)
 	}
-	if muxData != 12 {
-		t.Fatalf("unexpected mux data %d", muxData)
+	if aluInput2 != 12 {
+		t.Fatalf("unexpected mux data %d", aluInput2)
 	}
 
-	// addi reg[5]  = reg[5]=16, 2
-	data = datapath.Collect(aluOp, rd1, mux, memOp, memRen, wbSel)
-	regData1 = data[1]
-	muxData = data[2]
-	if regData1 != 16 {
-		t.Fatalf("unexpected reg data1 %d", regData1)
+	// addi reg[4]  = reg[5]=16, 2
+	data = rcvr.R(aluOp, rd1, mux, memOp, memRen, wbSel)
+	aluInput1 = data[1]
+	aluInput2 = data[2]
+	if aluInput1 != 16 {
+		t.Fatalf("unexpected reg data1 %d", aluInput1)
 	}
-	if muxData != 2 {
-		t.Fatalf("unexpected mux data %d", muxData)
+	if aluInput2 != 2 {
+		t.Fatalf("unexpected mux data %d", aluInput2)
 	}
 
 	// add  reg[7]  = reg[6]=12, reg[8]=16
-	data = datapath.Collect(aluOp, rd1, mux, memOp, memRen, wbSel)
-	regData1 = data[1]
-	muxData = data[2]
-	if regData1 != 12 {
-		t.Fatalf("unexpected reg data1 %d", regData1)
+	data = rcvr.R(aluOp, rd1, mux, memOp, memRen, wbSel)
+	aluInput1 = data[1]
+	aluInput2 = data[2]
+	if aluInput1 != 12 {
+		t.Fatalf("unexpected reg data1 %d", aluInput1)
 	}
-	if muxData != 16 {
-		t.Fatalf("unexpected mux data %d", muxData)
+	if aluInput2 != 16 {
+		t.Fatalf("unexpected mux data %d", aluInput2)
 	}
 
 	// add  reg[10] = reg[8]=16, reg[2]=4
-	data = datapath.Collect(aluOp, rd1, mux, memOp, memRen, wbSel)
-	regData1 = data[1]
-	muxData = data[2]
-	if regData1 != 16 {
-		t.Fatalf("unexpected reg data1 %d", regData1)
+	data = rcvr.R(aluOp, rd1, mux, memOp, memRen, wbSel)
+	aluInput1 = data[1]
+	aluInput2 = data[2]
+	if aluInput1 != 16 {
+		t.Fatalf("unexpected reg data1 %d", aluInput1)
 	}
-	if muxData != 4 {
-		t.Fatalf("unexpected mux data %d", muxData)
+	if aluInput2 != 4 {
+		t.Fatalf("unexpected mux data %d", aluInput2)
 	}
 }

@@ -21,10 +21,10 @@ func TestCtrl_ALU(t *testing.T) {
 	arlou := alu.New().(*alu.ALU)
 	arlou.SetPin(alu.In.Operation, ctrl.GetPin(Out.ALUOp))
 	arlou.SetPin(alu.In.Operand1, op1)
-	arlou.SetPin(alu.In.Operand2, device.Mux(ctrl.GetPin(Out.ALUSrc), rd2, ctrl.GetPin(Out.Imm)))
+	arlou.SetPin(alu.In.Operand2, device.Mux("alu-op", ctrl.GetPin(Out.ALUSrc), rd2, ctrl.GetPin(Out.Imm)))
 	// write back mux use WBSel line to route from either alu or mem data (simulated)
 	memData := datapath.MakeWires()
-	wbMux := device.Mux(ctrl.GetPin(Out.WBSel), arlou.GetPin(alu.Out.Result), memData)
+	wbMux := device.Mux("reg-wb",ctrl.GetPin(Out.WBSel), arlou.GetPin(alu.Out.Result), memData)
 
 
 
@@ -53,28 +53,28 @@ func TestCtrl_ALU(t *testing.T) {
 		ctrl.GetPin(Out.MemRen),
 		ctrl.GetPin(Out.Werf),
 		ctrl.GetPin(Out.RD)
-
+	rcvr := datapath.NewReceiver("test:ctrl")
 	// process inst 1, add
-	datapath.Collect(rs1, rs2, memOp, memRead, werf, rd)
-	if result := datapath.Collect(wbMux)[0]; result != 16 {
+	rcvr.R(rs1, rs2, memOp, memRead, werf, rd)
+	if result :=rcvr.R(wbMux)[0]; result != 16 {
 		t.Fatal("unexpected alu result:", result)
 	}
 
 	// process inst 2, addi
-	datapath.Collect(rs1, rs2, memOp, memRead, werf, rd)
-	if result := datapath.Collect(wbMux)[0]; result != 18 {
+	rcvr.R(rs1, rs2, memOp, memRead, werf, rd)
+	if result := rcvr.R(wbMux)[0]; result != 18 {
 		t.Fatal("unexpected alu result:", result)
 	}
 
 	// process inst 3, add
-	datapath.Collect(rs1, rs2, memOp, memRead, werf, rd)
-	if result := datapath.Collect(wbMux)[0]; result != 28 {
+	rcvr.R(rs1, rs2, memOp, memRead, werf, rd)
+	if result := rcvr.R(wbMux)[0]; result != 28 {
 		t.Fatal("unexpected alu result:", result)
 	}
 
 	// process inst 4, add
-	datapath.Collect(rs1, rs2, memOp, memRead, werf, rd)
-	if result := datapath.Collect(wbMux)[0]; result != 20 {
+	rcvr.R(rs1, rs2, memOp, memRead, werf, rd)
+	if result := rcvr.R(wbMux)[0]; result != 20 {
 		t.Fatal("unexpected alu result:", result)
 	}
 }

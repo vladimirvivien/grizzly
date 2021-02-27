@@ -19,13 +19,13 @@ func TestCtrl_MemStore(t *testing.T) {
 	// Rs2Data simulates reg[rs2] addr
 	rs2Out := datapath.MakeWires()
 	// regMemConnect splits reg[rs2] data 1) for alu (via mux) 2) to memory
-	regMemConnect := device.Connector(rs2Out, 2)
-	aluSrcMux := device.Mux(ctrl.GetPin(Out.ALUSrc), regMemConnect[0], ctrl.GetPin(Out.Imm))
+	regMemConnect := device.Connector("reg-out-connector", rs2Out, 2)
+	aluSrcMux := device.Mux("alu-op", ctrl.GetPin(Out.ALUSrc), regMemConnect[0], ctrl.GetPin(Out.Imm))
 
 	// memAddr simulates generated addr from ALU
 	memAddr := datapath.MakeWires()
 	// aluMemConnect splits ALU output into 1) a mem addr 2) or bypass to register
-	aluMemConnect := device.Connector(memAddr, 2)
+	aluMemConnect := device.Connector("alu-out-connector",memAddr, 2)
 
 	memory := mem.New(1024).(*mem.Memory)
 	memory.SetPin(mem.In.WriteEnable, ctrl.GetPin(Out.MemWen))
@@ -34,7 +34,7 @@ func TestCtrl_MemStore(t *testing.T) {
 	memory.SetPin(mem.In.DataWrite, regMemConnect[1])
 
 	// wbMux: outputs the register write back value either from alu or from mem
-	wbMux := device.Mux(ctrl.GetPin(Out.WBSel), aluMemConnect[1], memory.GetPin(mem.Out.DataRead))
+	wbMux := device.Mux("reg-wb", ctrl.GetPin(Out.WBSel), aluMemConnect[1], memory.GetPin(mem.Out.DataRead))
 
 	go func() {
 		// store byte
@@ -106,8 +106,9 @@ func TestCtrl_MemStore(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			rcvr := datapath.NewReceiver("test:ctrl:memstore")
 			// store value
-			data := datapath.Collect(aluOp, rs1, rs2, aluSrcMux, werf, rd, wbMux)
+			data := rcvr.R(aluOp, rs1, rs2, aluSrcMux, werf, rd, wbMux)
 			// check rs1
 			if data[1] != test.rs1 {
 				t.Errorf("unexpected rs1: %012b", data[1])

@@ -16,19 +16,20 @@ func TestCore(t *testing.T) {
 	}{
 
 		{
-			name: "multiple R and RIs",
+			name: "instructions with no overlaps",
 			setup: func(t *testing.T, doneSignal chan struct{}) *Core {
 				cor := newCore()
 				regfile := cor.reg.(*reg.RegisterFile)
 				regfile.SideLoad(1, 4)
 				regfile.SideLoad(2, 2)
+				regfile.SideLoad(7, 12)
 
 				insts := datapath.MakeWires()
 				go func() {
 					insts <- 0b000000000010_00001_000_00101_0010011  // addi reg[5] <= 2, reg[1]; reg[5]=6
-					insts <- 0b0000000_00010_00101_000_00011_0110011 // add  reg[3] <= reg[5], reg[2]; reg[3]=8
-					insts <- 0b0000000_00001_00011_001_00110_0010011 // slli reg[6] <= 1, reg[3]; reg[6]=16
-					close(doneSignal)
+					//insts <- 0b0000000_00010_00111_000_00011_0110011 // add  reg[3] <= reg[7], reg[2]; reg[3]=14
+					//insts <- 0b000000000001_00010_001_00110_0010011 // slli reg[6] <= 1, reg[2]; reg[6]=4
+					//close(doneSignal)
 				}()
 				cor.SetPin(In.Insts, insts)
 				return cor
@@ -36,8 +37,8 @@ func TestCore(t *testing.T) {
 
 			regMap: map[uint32]datapath.Word{
 				0b00101: 6,
-				0b00011: 8,
-				0b00110: 16,
+				//0b00011: 14,
+				//0b00110: 16,
 			},
 		},
 	}
@@ -53,15 +54,15 @@ func TestCore(t *testing.T) {
 
 			select {
 			case <-waiter:
-				t.Log("waiting... before evaluation")
-				time.Sleep(1000 * time.Millisecond)
-				regfile := cor.reg.(*reg.RegisterFile)
-				for k, expected := range test.regMap {
-					probed := regfile.Probe(k)
-					if probed != expected {
-						t.Errorf("unexpected register value: reg[%05b]=%032b; expecting %032b", k, probed, expected)
-					}
-				}
+				//t.Log("waiting... before evaluation")
+				//time.Sleep(5000 * time.Millisecond)
+				//regfile := cor.reg.(*reg.RegisterFile)
+				//for k, expected := range test.regMap {
+				//	probed := regfile.Probe(k)
+				//	if probed != expected {
+				//		t.Errorf("unexpected register value: reg[%05b]=%032b; expecting %032b", k, probed, expected)
+				//	}
+				//}
 			case <-time.After(5000 * time.Millisecond):
 				t.Fatalf("Control unit operation %s took too long", test.name)
 			}

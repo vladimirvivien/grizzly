@@ -18,7 +18,7 @@ func TestCtrl_MemLoad(t *testing.T){
 
 	aluOutput := datapath.MakeWires() // simulates ALU result
 	// aluMemConnect splits ALU output into 1) a mem addr 2) or bypass to register
-	aluMemConnect := device.Connector(aluOutput, 2)
+	aluMemConnect := device.Connector("alu-out-connector", aluOutput, 2)
 
 	memory := mem.New(1024).(*mem.Memory)
 	memory.SetPin(mem.In.WriteEnable, ctrl.GetPin(Out.MemWen))
@@ -26,7 +26,7 @@ func TestCtrl_MemLoad(t *testing.T){
 	memory.SetPin(mem.In.Operation, ctrl.GetPin(Out.MemOp))
 	memory.SetPin(mem.In.Address, aluMemConnect[0])
 	// wbMux: outputs the register write back value either from alu or from mem
-	wbMux := device.Mux(ctrl.GetPin(Out.WBSel), aluMemConnect[1], memory.GetPin(mem.Out.DataRead))
+	wbMux := device.Mux("reg-wb",ctrl.GetPin(Out.WBSel), aluMemConnect[1], memory.GetPin(mem.Out.DataRead))
 
 	go func() {
 		// load byte
@@ -69,8 +69,10 @@ func TestCtrl_MemLoad(t *testing.T){
 		ctrl.GetPin(Out.Werf),
 		ctrl.GetPin(Out.RD)
 
+	rcvr := datapath.NewReceiver("test:ctrl:memload")
+
 	// load mem[1000]
-	data := datapath.Collect(aluOp, rs1, rs2, imm, aluSrc, werf, rd, wbMux)
+	data := rcvr.R(aluOp, rs1, rs2, imm, aluSrc, werf, rd, wbMux)
 	// check imm value 128
 	if data[3] != 128 {
 		t.Errorf("unexpected immediate: %012b", data[6])
@@ -81,7 +83,7 @@ func TestCtrl_MemLoad(t *testing.T){
 	}
 
 	// load mem[844]
-	data = datapath.Collect(aluOp, rs1, rs2, imm, aluSrc, werf, rd, wbMux)
+	data = rcvr.R(aluOp, rs1, rs2, imm, aluSrc, werf, rd, wbMux)
 	// check imm value 257
 	if data[3] != 257 {
 		t.Errorf("unexpected immediate: %012b", data[6])
@@ -92,14 +94,14 @@ func TestCtrl_MemLoad(t *testing.T){
 	}
 
 	//add
-	data = datapath.Collect(aluOp, rs1, rs2, imm, aluSrc, werf, rd, wbMux)
+	data = rcvr.R(aluOp, rs1, rs2, imm, aluSrc, werf, rd, wbMux)
 	// check alu out == write back mux value
 	if data[7] != 12010 {
 		t.Errorf("unexpected write back value: %032b", data[7])
 	}
 
 	// load mem[200]
-	data = datapath.Collect(aluOp, rs1, rs2, imm, aluSrc, werf, rd, wbMux)
+	data = rcvr.R(aluOp, rs1, rs2, imm, aluSrc, werf, rd, wbMux)
 	// check imm value 257
 	if data[3] != 273 {
 		t.Errorf("unexpected immediate: %012b", data[6])

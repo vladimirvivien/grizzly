@@ -18,7 +18,7 @@ func TestMemory_ReadWrite(t *testing.T) {
 		mem.TestSideLoad(datapath.Word(i), datapath.Word(i*4))
 		val := mem.TestProbe(datapath.Word(i))
 		if val != datapath.Word(i*4) {
-			t.Errorf("unexpected value mem[%032b]=%0b32", i, val)
+			t.Errorf("unexpected value mem[%032b]=%032b", i, val)
 		}
 	}
 }
@@ -89,7 +89,7 @@ func TestMemory_Run(t *testing.T) {
 				t.Errorf("mem: unexpected value memory[%032b]=%032b", i, val)
 			}
 		}
-	case <-time.After(70*time.Millisecond):
+	case <-time.After(150*time.Millisecond):
 		t.Fatal("mem: took too long to initialize")
 	}
 }

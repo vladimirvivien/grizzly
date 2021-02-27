@@ -86,8 +86,9 @@ func (m *Memory) Run() error {
 			close(m.dataReadOut)
 		}()
 
+		rcvr := datapath.NewReceiver("mem")
 		for {
-			data := datapath.Collect(addrPin, memOpPin)
+			data := rcvr.R(addrPin, memOpPin)
 			addr, memOp := data[0], data[1]
 
 			select {
@@ -98,6 +99,7 @@ func (m *Memory) Run() error {
 				// to register to avoid blocking.
 				if en == 0 {
 					m.dataReadOut <- m.refresh()
+					log.Println("mem: read enabled=false")
 					continue
 				}
 
@@ -105,6 +107,7 @@ func (m *Memory) Run() error {
 				// is actually carried out.
 				value := m.read(addr, memOp)
 				m.dataReadOut <- value
+				log.Printf("mem:read enable=true; addr=%032b; data=%032b; op=%03b", addr, value, memOp)
 
 			case <-writeEnPin:
 				// Write enabled is sent only when instructions is for store
@@ -114,6 +117,7 @@ func (m *Memory) Run() error {
 				// Always send data to the mem-output to ensure bit stream continuity
 				// out of the mem component to avoid deadlock
 				m.dataReadOut <- m.refresh()
+				log.Printf("mem:write addr=%032b; data=%032b; op=%03b", addr, value, memOp)
 			}
 		}
 	}()

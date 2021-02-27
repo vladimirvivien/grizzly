@@ -106,14 +106,21 @@ func (a *ALU) Run() error {
 	go func() {
 		defer close(a.resultOut)
 
+		//rcvr := datapath.NewReceiver("alu")
 		opWire := a.GetPin(In.Operation)
 		operandWire1 := a.GetPin(In.Operand1)
 		operandWire2 := a.GetPin(In.Operand2)
 
 		for {
-			// wait for opCtrl, collect data
-			data := datapath.Collect(opWire, operandWire1, operandWire2)
-			op, data1, data2 := data[0], data[1], data[2]
+			// wait for opCtrl, receive input data
+			op := <-opWire
+			log.Printf("alu: aluOp %d", op)
+			//data := rcvr.R(operandWire1, operandWire2)
+			//data1, data2 := data[0], data[1]
+			data1 := <-operandWire1
+			log.Printf("alu: operand1 %d", data1)
+			data2 := <-operandWire2
+			log.Printf("alu: opreand2 %d", data2)
 
 			log.Printf("alu: op=%05b, op1=%032b, op2=%032b", op, data1, data2)
 

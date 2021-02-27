@@ -45,7 +45,7 @@ func New() device.Type {
 
 func newRegister() *RegisterFile {
 	r := &RegisterFile{
-		file:       make([]datapath.Word, 32, 32),
+		file:       make([]datapath.Word, 32, 32), // TODO convert to array [32]datapath.Word
 		rs1DataOut: datapath.MakeWires(),
 		rs2DataOut: datapath.MakeWires(),
 		Base:       device.NewBase(),
@@ -73,9 +73,10 @@ func (r *RegisterFile) Run() error {
 			close(r.rs2DataOut)
 		}()
 
+		rcvr := datapath.NewReceiver("reg_read")
 		for {
 			// Collect address lines
-			addrs := datapath.Collect(rs1Pin, rs2Pin)
+			addrs := rcvr.R(rs1Pin, rs2Pin)
 			rs1Addr, rs2Addr := addrs[0], addrs[1]
 
 			// send values out
@@ -88,12 +89,13 @@ func (r *RegisterFile) Run() error {
 
 	// Regfile Write Loop
 	go func() {
+		rcvr := datapath.Receiver{Name:"reg_write"}
 		for {
 			// receive write-enble reg file (werf) control
 			// then only store value if is set to 1
 			select {
 			case werf := <-werfPin:
-				results := datapath.Collect(rdPin, dataPin)
+				results := rcvr.R(rdPin, dataPin)
 				if werf == 0 {
 					continue
 				}
