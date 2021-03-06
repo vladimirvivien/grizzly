@@ -13,7 +13,7 @@ func Mux(name string, selectorPin Pin, inPins ...Pin) Pin {
 	go func() {
 		defer close(output)
 		rcvr := datapath.Receiver{Name:name}
-		var words []datapath.Word
+		var words []datapath.XWord
 		for {
 			select {
 			case sel := <-selectorPin:

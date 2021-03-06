@@ -12,7 +12,7 @@ func TestCore(t *testing.T) {
 	tests := []struct {
 		name      string
 		setup     func(*testing.T, chan struct{}) *Core
-		regMap map[uint32]datapath.Word
+		regMap map[uint32]datapath.XWord
 	}{
 
 		{
@@ -35,7 +35,7 @@ func TestCore(t *testing.T) {
 				return cor
 			},
 
-			regMap: map[uint32]datapath.Word{
+			regMap: map[uint32]datapath.XWord{
 				0b00101: 6,
 				//0b00011: 14,
 				//0b00110: 16,

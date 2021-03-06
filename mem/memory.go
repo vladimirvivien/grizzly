@@ -54,7 +54,7 @@ var (
 
 type Memory struct {
 	*device.Base
-	state       datapath.Word
+	state       datapath.XWord
 	store       []byte
 	dataReadOut datapath.Wires
 }
@@ -125,7 +125,7 @@ func (m *Memory) Run() error {
 	return nil
 }
 
-func (m *Memory) read(addr datapath.Word, op uint32) (data datapath.Word) {
+func (m *Memory) read(addr datapath.XWord, op uint32) (data datapath.XWord) {
 	m.RLock()
 	defer m.RUnlock()
 
@@ -142,15 +142,15 @@ func (m *Memory) read(addr datapath.Word, op uint32) (data datapath.Word) {
 	}
 
 	// apply operation
-	var result datapath.Word
+	var result datapath.XWord
 
 	switch op {
 	case Ops.Lb:
-		result = datapath.Word(int32(data & 0xFF))
+		result = datapath.XWord(int32(data & 0xFF))
 	case Ops.Lbu:
 		result = data & 0xFF
 	case Ops.Lh:
-		result = datapath.Word(int32(data & 0xFFFF))
+		result = datapath.XWord(int32(data & 0xFFFF))
 	case Ops.Lhu:
 		result = data & 0xFFFF
 	case Ops.Lw:
@@ -161,20 +161,20 @@ func (m *Memory) read(addr datapath.Word, op uint32) (data datapath.Word) {
 	return result
 }
 
-func (m *Memory) refresh() datapath.Word {
+func (m *Memory) refresh() datapath.XWord {
 	m.RLock()
 	defer m.RUnlock()
 	return m.state
 }
 
-func (m *Memory) write(addr, value datapath.Word, op uint32) {
+func (m *Memory) write(addr, value datapath.XWord, op uint32) {
 	m.Lock()
 	defer m.Unlock()
 
 	m.assertAddress(addr)
 
 	// apply store operation
-	var data datapath.Word
+	var data datapath.XWord
 	switch op {
 	case Ops.Sb:
 		data = value & 0xFF
@@ -200,28 +200,28 @@ func (m *Memory) write(addr, value datapath.Word, op uint32) {
 	}
 }
 
-func (m *Memory) assertAddress(addr datapath.Word) {
-	if addr > datapath.Word(len(m.store)-4) {
+func (m *Memory) assertAddress(addr datapath.XWord) {
+	if addr > datapath.XWord(len(m.store)-4) {
 		panic(fmt.Sprintf("mem: address %032b out of bound", addr))
 	}
 	bound := addr + datapath.XlenBytes
-	if bound > datapath.Word(len(m.store)) {
+	if bound > datapath.XWord(len(m.store)) {
 		panic(fmt.Sprintf("mem: address %032b out of bound", addr))
 	}
 }
 
-func (m *Memory) assertAlign32(addr datapath.Word) {
+func (m *Memory) assertAlign32(addr datapath.XWord) {
 	if addr&0x3 > 0 { // 4-byte alignment
 		panic("mem: address misaligned")
 	}
 }
 
 // TestSideLoad is TEST-ONLY method used to load values directly into memory
-func (m *Memory) TestSideLoad(addr datapath.Word, val datapath.Word) {
+func (m *Memory) TestSideLoad(addr datapath.XWord, val datapath.XWord) {
 	m.write(addr, val, Ops.Lw)
 }
 
 // TestProbe is TEST-ONLY method used to read values directly from mem
-func (m *Memory) TestProbe(addr datapath.Word) datapath.Word {
+func (m *Memory) TestProbe(addr datapath.XWord) datapath.XWord {
 	return m.read(addr, Ops.Lw)
 }

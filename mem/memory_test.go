@@ -15,9 +15,9 @@ func TestMemory_ReadWrite(t *testing.T) {
 		if size <= i+datapath.XlenBytes {
 			break
 		}
-		mem.TestSideLoad(datapath.Word(i), datapath.Word(i*4))
-		val := mem.TestProbe(datapath.Word(i))
-		if val != datapath.Word(i*4) {
+		mem.TestSideLoad(datapath.XWord(i), datapath.XWord(i*4))
+		val := mem.TestProbe(datapath.XWord(i))
+		if val != datapath.XWord(i*4) {
 			t.Errorf("unexpected value mem[%032b]=%032b", i, val)
 		}
 	}
@@ -62,10 +62,10 @@ func TestMemory_Run(t *testing.T) {
 			}
 			// write data to memory
 			datapath.Send(
-				datapath.Packet{Word: datapath.Word(i),Wires: addr},
-				datapath.Packet{Word: Ops.Lw, Wires:op},
-				datapath.Packet{Word: 1, Wires:wen},
-				datapath.Packet{Word: datapath.Word(i*4), Wires:data},
+				datapath.Packet{XWord: datapath.XWord(i),Wires: addr},
+				datapath.Packet{XWord: Ops.Lw, Wires:op},
+				datapath.Packet{XWord: 1, Wires:wen},
+				datapath.Packet{XWord: datapath.XWord(i*4), Wires:data},
 			)
 			<-mem.GetPin(Out.DataRead) // flush out data read wires
 		}
@@ -80,12 +80,12 @@ func TestMemory_Run(t *testing.T) {
 			}
 			// read from memory
 			datapath.Send(
-				datapath.Packet{Word: datapath.Word(i),Wires: addr},
-				datapath.Packet{Word: Ops.Lw, Wires:op},
-				datapath.Packet{Word: 1, Wires:ren},
+				datapath.Packet{XWord: datapath.XWord(i),Wires: addr},
+				datapath.Packet{XWord: Ops.Lw, Wires:op},
+				datapath.Packet{XWord: 1, Wires:ren},
 			)
 			val := <- dataOut
-			if val != datapath.Word(i*4) {
+			if val != datapath.XWord(i*4) {
 				t.Errorf("mem: unexpected value memory[%032b]=%032b", i, val)
 			}
 		}

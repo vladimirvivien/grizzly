@@ -124,7 +124,7 @@ func (a *ALU) Run() error {
 
 			log.Printf("alu: op=%05b, op1=%032b, op2=%032b", op, data1, data2)
 
-			var opResult datapath.Word
+			var opResult datapath.XWord
 
 			switch op {
 			// addition: add, addi

@@ -20,11 +20,40 @@ const XLEN = 32
 const Width32 = 32
 const Width64 = 64
 
-// type Word = [Xlen]byte
+// XWord represents the appropriate
+// Word size for given ISA spec (16,32,64,128 bits)
+type XWord = uint32
 
-type Word = uint32
-type DoubleWord = uint64
+// OpFields operation control and data
+// constructed from instruction.
+type OpFields struct {
+	Opcode uint8
+	Rd     uint8
+	Funct3 uint8
+	Rs1    uint8
+	Rs2    uint8
+	Funct7 uint8
+	Shift  uint8
+	Imm    uint32
+}
 
-type Wires = chan Word
-type WireRcvd = <-chan Word
-type WireSend = chan <- Word
+type AluParam struct {
+	Opcode,
+	Rd,
+	Funct3,
+	Funct7 uint8
+
+	Op1,
+	Op2 XWord
+}
+
+type AluResult struct {
+	F3 uint8
+	Rd uint8
+	Value XWord
+}
+
+type RegisterData struct {
+	Rd uint8
+	Value XWord
+}

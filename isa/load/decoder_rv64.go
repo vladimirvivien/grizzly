@@ -1,16 +1,17 @@
 // +build rv64i
 
-package integer
+package load
 
 import (
 	"github.com/vladimirvivien/grizzly/datapath"
+	"github.com/vladimirvivien/grizzly/isa"
 )
 
-// Decode 64-bit long integer format instructions:
+// Decode 32-bit load instruction format
 //
-// 31.......25.....20.....15...12.....07.......0
-//   fn7      RS2    RS1    fn3  RD     OPCODE
-//   0000000__00010__00001__000__00101__0110011
+// 31............20.....15...12.....07.......0
+//   imm[11:0]     RS1    fn3  RD     OPCODE
+//   000000000000__00000__xxx__00000__0000011
 //
 func Decode(i datapath.XWord) isa.Fields {
 	var fields isa.Fields
@@ -18,9 +19,6 @@ func Decode(i datapath.XWord) isa.Fields {
 	fields.Rd = uint8((i >> 7) & 0x1F)
 	fields.Funct3 = uint8((i >> 12) & 0x7)
 	fields.Rs1 = uint8((i >> 15) & 0x1F)
-	fields.Rs2 = uint8((i >> 20) & 0x1F)
-	fields.Funct7 = uint8((i >> 25) & 0x7F)
+	fields.Imm = (i >> 20) & 0xFFF
 	return fields
 }
-
-

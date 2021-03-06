@@ -76,7 +76,7 @@ func TestCtrl_MemStore(t *testing.T) {
 		rs2,
 		imm,
 		writeBack,
-		storedVal datapath.Word
+		storedVal datapath.XWord
 	}{
 		{
 			name:      "store byte (sb)",
