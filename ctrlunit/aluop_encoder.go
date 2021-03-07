@@ -5,7 +5,7 @@ import (
 	"github.com/vladimirvivien/grizzly/isa/integer"
 )
 
-func encodeAluOp(functs uint32) uint32 {
+func encodeAluOp(functs uint8) uint8 {
 	switch functs {
 	case integer.Add.Functs, integer.Addi.Functs:
 		return alu.Ops.Add

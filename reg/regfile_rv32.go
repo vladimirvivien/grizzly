@@ -38,10 +38,10 @@ func (r *RegisterFile) AluParams() <-chan datapath.AluParam {
 
 func (r RegisterFile) Run() error {
 	if r.opInput == nil {
-		return fmt.Errorf("register file missing opField input")
+		return fmt.Errorf("register file: missing opField input")
 	}
 	if r.dataInput == nil {
-		return fmt.Errorf("register file missing data input")
+		return fmt.Errorf("register file: missing data input")
 	}
 
 	// operation fields opInput loop

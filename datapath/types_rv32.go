@@ -23,6 +23,7 @@ const Width64 = 64
 // XWord represents the appropriate
 // Word size for given ISA spec (16,32,64,128 bits)
 type XWord = uint32
+type SXWord = int32
 
 // OpFields operation control and data
 // constructed from instruction.
