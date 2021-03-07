@@ -106,9 +106,30 @@ func (a *ALU) Run() error {
 				value = params.Op1 & params.Op2
 			}
 
-			result <- datapath.AluResult{Value: value, Rd: params.Rd}
+			result <- datapath.AluResult{Opcode: params.Opcode, F3: params.Funct3, F7:params.Funct7, Value: value, Rd: params.Rd}
 		}
 	}()
 
 	return nil
 }
+
+// mulh** returns high 32-bit portion of multiplication product.
+// For 32-bit operands, operation assumes 64-bit host machine.
+
+// mulh interpret operands as signed
+func mulh(data1, data2 datapath.XWord) datapath.XWord {
+	result := (int64(data1) * int64(data2)) >> datapath.Width32
+	return datapath.XWord(result)
+}
+
+// mulhsu interpret operands as signed/unsigned
+func mulhsu(data1, data2 datapath.XWord) datapath.XWord {
+	result := (uint64(int32(data1)) * uint64(data2)) >> datapath.Width32
+	return datapath.XWord(result)
+}
+
+func mulhu(data1, data2 datapath.XWord) datapath.XWord {
+	result := (uint64(data1) * uint64(data2)) >> datapath.Width32
+	return datapath.XWord(result)
+}
+

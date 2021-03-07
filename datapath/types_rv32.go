@@ -49,7 +49,8 @@ type AluParam struct {
 }
 
 type AluResult struct {
-	F3 uint8
+	Opcode uint8
+	F3,F7 uint8
 	Rd uint8
 	Value XWord
 }
