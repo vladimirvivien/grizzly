@@ -7,9 +7,10 @@ import (
 
 	"github.com/vladimirvivien/grizzly/clock"
 	"github.com/vladimirvivien/grizzly/datapath"
+	coretest "github.com/vladimirvivien/grizzly/testing"
 )
 
-func TestCore_Run_Instructions(t *testing.T) {
+func TestCore_Run_Manual(t *testing.T) {
 	cor := New()
 	ch := make(chan []byte)
 	cor.Input(ch)
@@ -29,7 +30,7 @@ func TestCore_Run_Instructions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// stall to wait for all
+	// stall to wait for all instructions before assessment
 	<-clock.New(100*time.Microsecond).Ticks()
 	val := cor.reg.Probe(1)
 	if val!= 2{
@@ -55,6 +56,26 @@ func TestCore_Run_Instructions(t *testing.T) {
 	if val!= 8{
 		t.Errorf("unexpected register value: reg[6]=%d", val)
 	}
+}
+
+
+func TestCore_Run_Stream(t *testing.T) {
+	stream, err := coretest.StreamFromFile("../testing/programs/rtypes_rv32/add.bin")
+	if err != nil{
+		t.Fatal(err)
+	}
+	cor := New()
+	cor.Input(stream)
+	if err := cor.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// stall to wait for all instructions before assessment
+	//<-clock.New(100*time.Microsecond).Ticks()
+	//val := cor.reg.Probe(20)
+	//if val!= 2{
+	//	t.Errorf("unexpected register value: x1=%d", val)
+	//}
 }
 
 func instToStream(word datapath.XWord)[]byte {
