@@ -25,6 +25,9 @@ const Width64 = 64
 type XWord = uint32
 type SXWord = int32
 
+// Bytestream is a stream of instruction bytes
+type Bytestream = <-chan []byte
+
 // OpFields operation control and data
 // constructed from instruction.
 type OpFields struct {

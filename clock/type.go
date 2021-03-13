@@ -5,13 +5,13 @@ import (
 )
 
 type Ticks = <-chan time.Time
-type Clock = *clock
+type Clock = clock
 
 type clock struct {
 	ticker *time.Ticker
 }
 
-func New(period time.Duration) Clock {
+func New(period time.Duration) *Clock {
 	return &clock{ticker:time.NewTicker(period)}
 }
 

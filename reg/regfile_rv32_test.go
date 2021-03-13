@@ -92,12 +92,13 @@ func TestRegisterFile_Run_Op(t *testing.T) {
 				go func() {
 					// 0b0000000_00010_00001_000_00101_0110011
 					ch <- datapath.OpFields{Opcode: 0b0110011, Rd: 0b00101, Funct3: 0, Rs1: 0b00001, Rs2: 0b00010, Funct7: 0}
+					reg.writeSig <- writeSignal{}
 					close(ch)
 				}()
 				return reg
 			},
 			eval: func(t *testing.T, reg *RegisterFile) {
-				for param := range reg.AluParams() {
+				for param := range reg.AluParamsOutput() {
 					if param.Opcode != 0b0110011 {
 						t.Errorf("unexpected ALUParam.opcode: %d", param.Opcode)
 					}
@@ -136,23 +137,26 @@ func TestRegisterFile_Run_Op(t *testing.T) {
 				go func() {
 					// 0b0000000_00010_00001_000_00101_0110011 (add)
 					ch <- datapath.OpFields{Opcode: 0b0110011, Rd: 0b00101, Funct3: 0, Rs1: 0b00001, Rs2: 0b00010, Funct7: 0}
+					reg.writeSig <- writeSignal{}
 					// 0b000000000010_00001_000_00101_0010011 (addi)
 					ch <- datapath.OpFields{Imm: 0b000000000010, Rs2: 0b00010, Rs1: 0b00001, Funct3: 0b000, Rd: 0b00101, Opcode: 0b0010011}
+					reg.writeSig <- writeSignal{}
 					// 0b0100000_11011_01101_101_00101_0010011 (srai)
 					ch <- datapath.OpFields{Shift: 0b11011, Funct7: 0b0100000, Rs1: 0b01101, Funct3: 0b101, Rd: 0b00101, Opcode: 0b0010011}
+					reg.writeSig <- writeSignal{}
 					close(ch)
 				}()
 				return reg
 			},
 			eval: func(t *testing.T, reg *RegisterFile) {
 				// instruction 1
-				param := <-reg.AluParams()
+				param := <-reg.AluParamsOutput()
 				if param.Opcode != 0b0110011 {
 					t.Errorf("unexpected ALUParam.opcode: %d", param.Opcode)
 				}
 
 				// instruction 2
-				param = <-reg.AluParams()
+				param = <-reg.AluParamsOutput()
 				if param.Opcode != 0b0010011 {
 					t.Errorf("unexpected ALUParam.opcode: %d", param.Opcode)
 				}
@@ -164,7 +168,7 @@ func TestRegisterFile_Run_Op(t *testing.T) {
 				}
 
 				// instruction 3
-				param = <-reg.AluParams()
+				param = <-reg.AluParamsOutput()
 				if param.Opcode != 0b0010011 {
 					t.Errorf("unexpected ALUParam.opcode: %d", param.Opcode)
 				}
@@ -234,6 +238,7 @@ func TestRegisterFile_Run_Data(t *testing.T) {
 			defer close(waiter)
 			for _, data := range test.data {
 				ch <- data
+				<- reg.writeSig
 			}
 		}()
 

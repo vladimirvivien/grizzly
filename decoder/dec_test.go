@@ -3,21 +3,20 @@ package decoder
 import (
 	"encoding/binary"
 	"testing"
-	"time"
 
-	"github.com/vladimirvivien/grizzly/clock"
+	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/isa"
 )
 
 func TestDecoder_Run(t *testing.T) {
 	tests := []struct {
 		name   string
-		setup  func(*testing.T) Bytestream
+		setup  func(*testing.T) datapath.Bytestream
 		assess func(*testing.T, *Decoder)
 	}{
 		{
 			name: "multi insts",
-			setup: func(t *testing.T) Bytestream {
+			setup: func(t *testing.T) datapath.Bytestream {
 				stream := make(chan []byte)
 				go func() {
 					// R
@@ -90,7 +89,6 @@ func TestDecoder_Run(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(*testing.T) {
 			dec := New()
-			dec.SetClock(clock.New(5 * time.Microsecond))
 			dec.Input(test.setup(t))
 
 			if err := dec.Run(); err != nil {
