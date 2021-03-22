@@ -238,7 +238,7 @@ func TestRegisterFile_Run_Data(t *testing.T) {
 			defer close(waiter)
 			for _, data := range test.data {
 				ch <- data
-				<- reg.writeSig
+				<- reg.writeSig // unblock signal
 			}
 		}()
 
@@ -248,16 +248,16 @@ func TestRegisterFile_Run_Data(t *testing.T) {
 
 		select {
 		case <-waiter:
-		case <-time.After(5 * time.Millisecond):
+		case <-time.After(10 * time.Millisecond):
 			t.Fatal("Register operations took too long to complete")
 		}
 
 		// assess
 		for addr, data := range test.data {
-			if reg.Probe(addr) != data.Value {
-				t.Errorf("unexpected RegisterData.Vallue: %d", data.Value)
+			actual := reg.Probe(addr)
+			if actual != data.Value {
+				t.Errorf("expecting RegisterData.Vallue %d, got %d", data.Value, actual)
 			}
 		}
-
 	}
 }

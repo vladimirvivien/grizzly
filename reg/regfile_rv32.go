@@ -10,9 +10,10 @@ import (
 )
 
 type writeSignal = struct{}
+type regfile = [datapath.RegSize]datapath.XWord
 type RegisterFile struct {
-	sync.RWMutex
-	file    []datapath.XWord
+	m sync.RWMutex
+	file    *regfile
 	writeSig chan writeSignal
 	opInput <-chan datapath.OpFields
 	dataInput <-chan datapath.RegisterData
@@ -22,7 +23,7 @@ type RegisterFile struct {
 func New() *RegisterFile {
 	return &RegisterFile{
 		writeSig: make(chan writeSignal),
-		file:   make([]datapath.XWord, 32, 32),
+		file: new(regfile),
 		output: make(chan datapath.AluParam),
 	}
 }
@@ -70,7 +71,8 @@ func (r RegisterFile) Run() error {
 			case isa.Opcodes.R:
 				params.Op1 = r.read(op.Rs1)
 				params.Op2 = r.read(op.Rs2)
-				// write output, wait for writeback
+				// write output,
+				// wait for writeback signal before next read
 				r.output <- params
 				<- r.writeSig
 
@@ -104,20 +106,18 @@ func (r RegisterFile) Run() error {
 	return nil
 }
 
-func (r *RegisterFile) read(addr uint8) (data datapath.XWord) {
-	r.RLock()
-	defer r.RUnlock()
+func (r *RegisterFile) read(addr uint8) datapath.XWord {
+	r.m.Lock()
+	defer r.m.Unlock()
 	if addr == 0 {
-		data = 0
-	} else {
-		data = r.file[addr]
+		return 0
 	}
-	return
+	return r.file[addr]
 }
 
 func (r *RegisterFile) write(addr uint8, data datapath.XWord) {
-	r.Lock()
-	defer r.Unlock()
+	r.m.Lock()
+	defer r.m.Unlock()
 	if addr == 0 {
 		return
 	}

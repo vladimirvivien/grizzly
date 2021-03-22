@@ -58,7 +58,15 @@ func TestCore_Run_Manual(t *testing.T) {
 	}
 }
 
-
+// Test
+//
+//addi x20, x0, 2
+//addi x21, x0, 4
+//addi x22, x0, 12
+//addi x24, x20, 4
+//add  x25, x21, x22
+//slli x26, x21, 1
+//
 func TestCore_Run_Stream(t *testing.T) {
 	stream, err := coretest.StreamFromFile("../testing/programs/rtypes_rv32/add.bin")
 	if err != nil{
@@ -71,11 +79,74 @@ func TestCore_Run_Stream(t *testing.T) {
 	}
 
 	// stall to wait for all instructions before assessment
-	//<-clock.New(100*time.Microsecond).Ticks()
-	//val := cor.reg.Probe(20)
-	//if val!= 2{
-	//	t.Errorf("unexpected register value: x1=%d", val)
-	//}
+	<-clock.New(300 * time.Microsecond).Ticks()
+	val := cor.reg.Probe(20)
+	if val!= 2{
+		t.Errorf("unexpected register value: x20=%d", val)
+	}
+	val = cor.reg.Probe(21)
+	if val!= 4{
+		t.Errorf("unexpected register value: x21=%d", val)
+	}
+	val = cor.reg.Probe(22)
+	if val!= 12{
+		t.Errorf("unexpected register value: x22=%d", val)
+	}
+
+	val = cor.reg.Probe(24)
+	if val!= 6{
+		t.Errorf("unexpected register value: x24=%d", val)
+	}
+	val = cor.reg.Probe(25)
+	if val!= 16{
+		t.Errorf("unexpected register value: x25=%d", val)
+	}
+	val = cor.reg.Probe(26)
+	if val!= 8{
+		t.Errorf("unexpected register value: x26=%d", val)
+	}
+}
+
+func BenchmarkCore_Run(b *testing.B) {
+	for i := 0; i < b.N; i++{
+		stream, err := coretest.StreamFromFile("../testing/programs/rtypes_rv32/add.bin")
+		if err != nil{
+			b.Fatal(err)
+		}
+		cor := New()
+		cor.Input(stream)
+		if err := cor.Run(); err != nil {
+			b.Fatal(err)
+		}
+
+		// stall to wait for all instructions before assessment
+		<-clock.New(time.Millisecond).Ticks()
+		val := cor.reg.Probe(20)
+		if val!= 2{
+			b.Errorf("unexpected register value: x20=%d", val)
+		}
+		val = cor.reg.Probe(21)
+		if val!= 4{
+			b.Errorf("unexpected register value: x21=%d", val)
+		}
+		val = cor.reg.Probe(22)
+		if val!= 12{
+			b.Errorf("unexpected register value: x22=%d", val)
+		}
+
+		val = cor.reg.Probe(24)
+		if val!= 6{
+			b.Errorf("unexpected register value: x24=%d", val)
+		}
+		val = cor.reg.Probe(25)
+		if val!= 16{
+			b.Errorf("unexpected register value: x25=%d", val)
+		}
+		val = cor.reg.Probe(26)
+		if val!= 8{
+			b.Errorf("unexpected register value: x26=%d", val)
+		}
+	}
 }
 
 func instToStream(word datapath.XWord)[]byte {

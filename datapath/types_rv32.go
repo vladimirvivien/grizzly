@@ -17,6 +17,7 @@ package datapath
 // This change would allow Grizzly to support different implementations of the RISCV
 // ISA including compressed instructions based on the size of XLEN.
 const XLEN = 32
+const RegSize = 32
 const Width32 = 32
 const Width64 = 64
 

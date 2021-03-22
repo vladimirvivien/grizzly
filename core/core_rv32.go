@@ -26,7 +26,7 @@ type Core struct {
 
 func New() *Core {
 	return &Core{
-		clock: clock.New(1*time.Millisecond),
+		clock: clock.New(20*time.Microsecond),
 		dec: decoder.New(),
 		reg: reg.New(),
 		alu: alu.New(),
