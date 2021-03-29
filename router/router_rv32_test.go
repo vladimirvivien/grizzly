@@ -10,23 +10,24 @@ import (
 )
 
 func TestRouter_Run(t *testing.T) {
-	resultCh := make(chan datapath.AluResult)
+	resultCh := make(chan []byte)
 	go func (){
 		// R-Opcode
-		resultCh <- datapath.AluResult{Opcode: isa.Opcodes.R, F3: integer.Add.F3, F7: integer.Add.F7, Rd: 0b00101, Value: math.MaxInt16}
+		resultCh <- datapath.EncodeAluResult(datapath.AluResult{Opcode: isa.Opcodes.R, Funct3: integer.Add.F3, Funct7: integer.Add.F7, Rd: 0b00101, Value: math.MaxInt16})
 		// RI-Opcode
-		resultCh <- datapath.AluResult{Opcode: isa.Opcodes.RI, F3: integer.Addi.F3, F7: integer.Addi.F7, Rd: 0b00101, Value: math.MaxInt8}
+		resultCh <- datapath.EncodeAluResult(datapath.AluResult{Opcode: isa.Opcodes.RI, Funct3: integer.Addi.F3, Funct7: integer.Addi.F7, Rd: 0b00101, Value: math.MaxInt8})
 		close(resultCh)
 	}()
 
 	router := New()
-	router.AluResultInput(resultCh)
+	router.Connect(Labels.InAluResult,resultCh)
 	if err := router.Run(); err != nil {
 		t.Fatal(err)
 	}
 
 	// R-code
-	aluData := <- router.RegisterDataOutput()
+	output := <- router.GetPin(Labels.OutRegisterData)
+	aluData := datapath.DecodeRegisterData(output)
 	if aluData.Rd != 5{
 		t.Errorf("unexpected reg addr: %d", aluData.Rd)
 	}
@@ -35,7 +36,8 @@ func TestRouter_Run(t *testing.T) {
 	}
 
 	// RI-code
-	aluData = <- router.RegisterDataOutput()
+	output = <- router.GetPin(Labels.OutRegisterData)
+	aluData = datapath.DecodeRegisterData(output)
 	if aluData.Rd != 5{
 		t.Errorf("unexpected reg addr: %d", aluData.Rd)
 	}

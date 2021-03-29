@@ -9,54 +9,62 @@ import (
 	"github.com/vladimirvivien/grizzly/isa/integer"
 )
 
+var(
+	Labels = struct {
+		InFields datapath.Pin
+		InData datapath.Pin
+		OutAluParams datapath.Pin
+	}{
+		InFields: datapath.Pin("regfile.in.opfields"),
+		InData: datapath.Pin("regfile.in.data"),
+		OutAluParams: datapath.Pin("regfile.out.aluparams"),
+	}
+)
+
 type writeSignal = struct{}
-type regfile = [datapath.RegSize]datapath.XWord
+type regfile = []datapath.XWord
 type RegisterFile struct {
-	m sync.RWMutex
-	file    *regfile
-	writeSig chan writeSignal
-	opInput <-chan datapath.OpFields
-	dataInput <-chan datapath.RegisterData
-	output  chan datapath.AluParam
+	*datapath.BaseComponent
+	m         sync.RWMutex
+	file      regfile
+	writeSig  chan writeSignal
+	output    chan []byte
 }
 
 func New() *RegisterFile {
-	return &RegisterFile{
+	reg := &RegisterFile{
+		BaseComponent: datapath.NewBase(),
 		writeSig: make(chan writeSignal),
-		file: new(regfile),
-		output: make(chan datapath.AluParam),
+		file:     make(regfile, datapath.RegSize, datapath.RegSize),
+		output:   make(chan []byte),
 	}
+	reg.Connect(Labels.OutAluParams, reg.output)
+	return reg
 }
 
-func (r *RegisterFile) OpInput(in <-chan datapath.OpFields) {
-	r.opInput = in
-}
 
-func (r *RegisterFile) DataInput(in <-chan datapath.RegisterData) {
-	r.dataInput = in
-}
-
-func (r *RegisterFile) AluParamsOutput() <-chan datapath.AluParam {
-	return r.output
-}
-
+// Run starts the register file component
 func (r RegisterFile) Run() error {
-	if r.opInput == nil {
-		return fmt.Errorf("register file: missing opField input")
+	input := r.GetPin(Labels.InFields)
+	if input == nil {
+		return fmt.Errorf("register file: missing input: %s", Labels.InFields)
 	}
-	if r.dataInput == nil {
-		return fmt.Errorf("register file: missing data input")
+	inData := r.GetPin(Labels.InData)
+	if inData == nil {
+		return fmt.Errorf("register file: missing data input: %s", Labels.InData)
 	}
 
 	// Register instruction input loop
-	// This loop handles instruction fields after decoding.
-	// It setups control and prepare data for the ALU.
+	// This loop handles operation fields from the decoder.
+	// Once processed, the register will setup control operations
+	// and prepare operands for the ALU.
 	// A semaphore signal is used to wait for writebacks
-	// from operations (Op.R, Op.RI, Op.L, etc) that requires it.
+	// from operations (Op.R, Op.RI, Op.L, etc) which requires it.
 	go func() {
 		defer close(r.output)
-		for op := range r.opInput {
-			params := datapath.AluParam{
+		for stream := range input {
+			op := datapath.DecodeOpFields(stream)
+			params := datapath.AluParams{
 				Opcode: op.Opcode,
 				Rd:     op.Rd,
 				Funct3: op.Funct3,
@@ -71,10 +79,11 @@ func (r RegisterFile) Run() error {
 			case isa.Opcodes.R:
 				params.Op1 = r.read(op.Rs1)
 				params.Op2 = r.read(op.Rs2)
+
 				// write output,
 				// wait for writeback signal before next read
-				r.output <- params
-				<- r.writeSig
+				r.output <- datapath.EncodeAluParams(params)
+				<-r.writeSig
 
 			case isa.Opcodes.RI:
 				params.Op1 = r.read(op.Rs1)
@@ -85,19 +94,19 @@ func (r RegisterFile) Run() error {
 					params.Op2 = op.Imm
 				}
 
-				r.output <- params
-				<- r.writeSig
+				r.output <- datapath.EncodeAluParams(params)
+				<-r.writeSig
 			}
 		}
 	}()
 
 	// Register data input loop
-	// This loop handles data that comes from any operation
-	// that writes data back to the register (Opcode.R, Opcode.RI, Opcode.S, etc)
-	// A semaphore signal is used to ensure that the read-loop can only happen
+	// Handles register data storage request from downsream operations.
+	// A semaphore signal is used to ensure that the read-loop can only
 	// proceed after a previous write.
-	go func(){
-		for data := range r.dataInput  {
+	go func() {
+		for dataStream := range inData {
+			data := datapath.DecodeRegisterData(dataStream)
 			r.write(data.Rd, data.Value)
 			r.writeSig <- writeSignal{}
 		}
@@ -107,20 +116,21 @@ func (r RegisterFile) Run() error {
 }
 
 func (r *RegisterFile) read(addr uint8) datapath.XWord {
-	r.m.Lock()
-	defer r.m.Unlock()
 	if addr == 0 {
 		return 0
 	}
+	r.m.RLock()
+	defer r.m.RUnlock()
 	return r.file[addr]
 }
 
 func (r *RegisterFile) write(addr uint8, data datapath.XWord) {
-	r.m.Lock()
-	defer r.m.Unlock()
 	if addr == 0 {
 		return
 	}
+
+	r.m.Lock()
+	defer r.m.Unlock()
 	r.file[addr] = data
 }
 

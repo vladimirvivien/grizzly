@@ -7,42 +7,49 @@ import (
 	"github.com/vladimirvivien/grizzly/isa"
 )
 
+var(
+	Labels = struct {
+		InAluResult datapath.Pin
+		OutRegisterData datapath.Pin
+	}{
+		InAluResult: datapath.Pin("router.in.aluresult"),
+		OutRegisterData: datapath.Pin("router.out.registerdata"),
+	}
+)
+
 type Router struct {
-	aluResultInput <-chan datapath.AluResult
-	regDataOutput  chan datapath.RegisterData
+	*datapath.BaseComponent
+	regDataOutput chan []byte
 }
 
 func New() *Router {
-	return &Router{
-		regDataOutput: make(chan datapath.RegisterData),
+	r := &Router{
+		BaseComponent: datapath.NewBase(),
+		regDataOutput: make(chan []byte),
 	}
-}
-
-func (r *Router) AluResultInput(ch <-chan datapath.AluResult) {
-	r.aluResultInput = ch
-}
-
-func (r *Router) RegisterDataOutput() <-chan datapath.RegisterData {
-	return r.regDataOutput
+	r.Connect(Labels.OutRegisterData, r.regDataOutput)
+	return r
 }
 
 func (r *Router) Run() error {
-	if r.aluResultInput == nil {
-		return fmt.Errorf("router: missing ALU result input")
+	aluResult := r.GetPin(Labels.InAluResult)
+	if aluResult == nil {
+		return fmt.Errorf("router: missing input: %s", Labels.InAluResult)
 	}
 
 	go func() {
 		defer close(r.regDataOutput)
 		for {
-			result, opened := <-r.aluResultInput
+			input, opened := <-aluResult
 			if !opened {
 				return
 			}
 
+			result := datapath.DecodeAluResults(input)
 			switch result.Opcode {
 			case isa.Opcodes.R, isa.Opcodes.RI:
 				// route to register file
-				r.regDataOutput <- datapath.RegisterData{Rd: result.Rd, Value: result.Value}
+				r.regDataOutput <- datapath.EncodeRegisterData(datapath.RegisterData{Rd: result.Rd, Value: result.Value})
 			case isa.Opcodes.L:
 			}
 

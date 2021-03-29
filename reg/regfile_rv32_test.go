@@ -87,18 +87,19 @@ func TestRegisterFile_Run_Op(t *testing.T) {
 				reg := New()
 				reg.Sideload(1, math.MaxInt32)
 				reg.Sideload(2, math.MaxInt8)
-				ch := make(chan datapath.OpFields)
-				reg.OpInput(ch)
+				ch := make(chan []byte)
+				reg.Connect(Labels.InFields, ch)
 				go func() {
 					// 0b0000000_00010_00001_000_00101_0110011
-					ch <- datapath.OpFields{Opcode: 0b0110011, Rd: 0b00101, Funct3: 0, Rs1: 0b00001, Rs2: 0b00010, Funct7: 0}
+					ch <- datapath.EncodeOpFields(datapath.OpFields{Opcode: 0b0110011, Rd: 0b00101, Funct3: 0, Rs1: 0b00001, Rs2: 0b00010, Funct7: 0})
 					reg.writeSig <- writeSignal{}
 					close(ch)
 				}()
 				return reg
 			},
 			eval: func(t *testing.T, reg *RegisterFile) {
-				for param := range reg.AluParamsOutput() {
+				for output := range reg.GetPin(Labels.OutAluParams) {
+					param := datapath.DecodeAluParams(output)
 					if param.Opcode != 0b0110011 {
 						t.Errorf("unexpected ALUParam.opcode: %d", param.Opcode)
 					}
@@ -132,17 +133,17 @@ func TestRegisterFile_Run_Op(t *testing.T) {
 				reg.Sideload(1, math.MaxInt32)
 				reg.Sideload(2, math.MaxInt8)
 				reg.Sideload(13, 32)
-				ch := make(chan datapath.OpFields)
-				reg.OpInput(ch)
+				ch := make(chan []byte)
+				reg.Connect(Labels.InFields, ch)
 				go func() {
 					// 0b0000000_00010_00001_000_00101_0110011 (add)
-					ch <- datapath.OpFields{Opcode: 0b0110011, Rd: 0b00101, Funct3: 0, Rs1: 0b00001, Rs2: 0b00010, Funct7: 0}
+					ch <- datapath.EncodeOpFields(datapath.OpFields{Opcode: 0b0110011, Rd: 0b00101, Funct3: 0, Rs1: 0b00001, Rs2: 0b00010, Funct7: 0})
 					reg.writeSig <- writeSignal{}
 					// 0b000000000010_00001_000_00101_0010011 (addi)
-					ch <- datapath.OpFields{Imm: 0b000000000010, Rs2: 0b00010, Rs1: 0b00001, Funct3: 0b000, Rd: 0b00101, Opcode: 0b0010011}
+					ch <- datapath.EncodeOpFields(datapath.OpFields{Imm: 0b000000000010, Rs2: 0b00010, Rs1: 0b00001, Funct3: 0b000, Rd: 0b00101, Opcode: 0b0010011})
 					reg.writeSig <- writeSignal{}
 					// 0b0100000_11011_01101_101_00101_0010011 (srai)
-					ch <- datapath.OpFields{Shift: 0b11011, Funct7: 0b0100000, Rs1: 0b01101, Funct3: 0b101, Rd: 0b00101, Opcode: 0b0010011}
+					ch <- datapath.EncodeOpFields(datapath.OpFields{Shift: 0b11011, Funct7: 0b0100000, Rs1: 0b01101, Funct3: 0b101, Rd: 0b00101, Opcode: 0b0010011})
 					reg.writeSig <- writeSignal{}
 					close(ch)
 				}()
@@ -150,13 +151,13 @@ func TestRegisterFile_Run_Op(t *testing.T) {
 			},
 			eval: func(t *testing.T, reg *RegisterFile) {
 				// instruction 1
-				param := <-reg.AluParamsOutput()
+				param := datapath.DecodeAluParams(<-reg.GetPin(Labels.OutAluParams))
 				if param.Opcode != 0b0110011 {
 					t.Errorf("unexpected ALUParam.opcode: %d", param.Opcode)
 				}
 
 				// instruction 2
-				param = <-reg.AluParamsOutput()
+				param = datapath.DecodeAluParams(<-reg.GetPin(Labels.OutAluParams))
 				if param.Opcode != 0b0010011 {
 					t.Errorf("unexpected ALUParam.opcode: %d", param.Opcode)
 				}
@@ -168,7 +169,7 @@ func TestRegisterFile_Run_Op(t *testing.T) {
 				}
 
 				// instruction 3
-				param = <-reg.AluParamsOutput()
+				param = datapath.DecodeAluParams(<-reg.GetPin(Labels.OutAluParams))
 				if param.Opcode != 0b0010011 {
 					t.Errorf("unexpected ALUParam.opcode: %d", param.Opcode)
 				}
@@ -188,7 +189,7 @@ func TestRegisterFile_Run_Op(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			reg := test.setup(t)
-			reg.DataInput(make(chan datapath.RegisterData))
+			reg.Connect(Labels.InData, make(chan []byte))
 
 			if err := reg.Run(); err != nil {
 				t.Fatal(err)
@@ -212,25 +213,25 @@ func TestRegisterFile_Run_Op(t *testing.T) {
 func TestRegisterFile_Run_Data(t *testing.T) {
 	tests := []struct {
 		name string
-		data map[uint8]datapath.RegisterData
+		data map[uint8][]byte
 	}{
 		{
 			name: "values",
-			data: map[uint8]datapath.RegisterData{
-				0: {Rd: 0, Value: 0},
-				4:{Rd:4,Value:math.MaxUint32},
-				8:{Rd:8,Value:math.MaxInt8},
-				16:{Rd:16,Value:math.MaxInt16},
-				31:{Rd:31,Value:math.MaxInt32},
+			data: map[uint8][]byte{
+				0:  datapath.EncodeRegisterData(datapath.RegisterData{Rd: 0, Value: 0}),
+				4:  datapath.EncodeRegisterData(datapath.RegisterData{Rd: 4, Value: math.MaxUint32}),
+				8:  datapath.EncodeRegisterData(datapath.RegisterData{Rd: 8, Value: math.MaxInt8}),
+				16: datapath.EncodeRegisterData(datapath.RegisterData{Rd: 16, Value: math.MaxInt16}),
+				31: datapath.EncodeRegisterData(datapath.RegisterData{Rd: 31, Value: math.MaxInt32}),
 			},
 		},
 	}
 
 	for _, test := range tests {
 		reg := New()
-		ch := make(chan datapath.RegisterData)
-		reg.OpInput(make(chan datapath.OpFields))
-		reg.DataInput(ch)
+		ch := make(chan []byte)
+		reg.Connect(Labels.InFields, make(chan []byte))
+		reg.Connect(Labels.InData, ch)
 
 		waiter := make(chan struct{})
 		go func() {
@@ -238,7 +239,7 @@ func TestRegisterFile_Run_Data(t *testing.T) {
 			defer close(waiter)
 			for _, data := range test.data {
 				ch <- data
-				<- reg.writeSig // unblock signal
+				<-reg.writeSig // unblock signal
 			}
 		}()
 
@@ -253,7 +254,8 @@ func TestRegisterFile_Run_Data(t *testing.T) {
 		}
 
 		// assess
-		for addr, data := range test.data {
+		for addr, stream := range test.data {
+			data := datapath.DecodeRegisterData(stream)
 			actual := reg.Probe(addr)
 			if actual != data.Value {
 				t.Errorf("expecting RegisterData.Vallue %d, got %d", data.Value, actual)

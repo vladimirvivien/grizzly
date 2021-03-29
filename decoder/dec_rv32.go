@@ -11,40 +11,34 @@ import (
 	"github.com/vladimirvivien/grizzly/isa/store"
 )
 
+var (
+	Labels = struct {
+		Instruction datapath.Pin
+		OutFields   datapath.Pin
+	}{
+		Instruction: datapath.Pin("decoder.in.instruction"),
+		OutFields:   datapath.Pin("decoder.out.fields"),
+	}
+)
+
 type Decoder struct {
-	bits  datapath.Bytestream
+	*datapath.BaseComponent
 	out   chan []byte
 }
 
 func New() *Decoder {
-	return &Decoder{
-		out: make(chan []byte, 0),
+	dec := &Decoder{
+		BaseComponent: datapath.NewBase(),
+		out: make(chan []byte),
 	}
-}
-
-// Input is connected to bytestream from instruction memory
-func (d *Decoder) Input(in datapath.Bytestream) {
-	d.bits = in
-}
-
-// Output returns a bytestream containing the
-// decoded instruction fields laid out as:
-//
-// 0       1       2       3       4       5       6
-// 01234567012345670123456701234567012345670123456701234567
-// +-------+-------+-------+-------+-------+-------+------+
-// |OpCode |   Rd  |Funct3 |   Rs1 |  Rs2  |Funct7 |Shift |
-// +-------+-------+-------+-------+-------+-------+------+
-// |               Imm             |
-// +-------------------------------+
-//
-func (d *Decoder) Output() datapath.Bytestream {
-	return d.out
+	dec.Connect(Labels.OutFields, dec.out)
+	return dec
 }
 
 // Run starts the decoder
 func (d *Decoder) Run() error {
-	if d.bits == nil {
+	instructions := d.GetPin(Labels.Instruction)
+	if instructions == nil {
 		return fmt.Errorf("decoder: input not set")
 	}
 
@@ -53,12 +47,12 @@ func (d *Decoder) Run() error {
 		defer close(d.out)
 
 		for {
-			bits, opened := <-d.bits
+			bits, opened := <-instructions
 			if !opened {
 				return
 			}
 
-			inst := bytesToInst(bits)
+			inst := instFromStream(bits)
 			opcode := isa.GetOpcode(inst)
 
 			var fields datapath.OpFields
@@ -71,7 +65,7 @@ func (d *Decoder) Run() error {
 				fields = store.Decode(inst)
 			}
 
-			d.out <- encode(fields)
+			d.out <- datapath.EncodeOpFields(fields)
 		}
 
 	}()
@@ -79,25 +73,8 @@ func (d *Decoder) Run() error {
 	return nil
 }
 
-// encode encodes the decoded instruction fields into stream:
-//
-// 0       1       2       3       4       5       6
-// 01234567012345670123456701234567012345670123456701234567
-// +-------+-------+-------+-------+-------+-------+------+
-// |OpCode |   Rd  |Funct3 |   Rs1 |  Rs2  |Funct7 |Shift |
-// +-------+-------+-------+-------+-------+-------+------+
-// |               Imm             |
-// +-------------------------------+
-//
-func encode(f datapath.OpFields) []byte {
-	buf := make([]byte,11,11)
-	buf[0] = f.Opcode
-	buf[1] = f.Rd
-	buf[2] = f.Funct3
-	buf[3] = f.Rs1
-	buf[4] = f.Rs2
-	buf[5] = f.Funct7
-	buf[6] = f.Shift
-	binary.LittleEndian.PutUint32(buf[7:], f.Imm)
-	return buf
+// decodeFromStream decodes input from stream to
+// instruction Word
+func instFromStream(bits []byte) datapath.XWord {
+	return binary.LittleEndian.Uint32(bits)
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/vladimirvivien/grizzly/isa"
 )
 
+
 func TestDecoder_Run(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -45,25 +46,27 @@ func TestDecoder_Run(t *testing.T) {
 			},
 			assess: func(t *testing.T, dec *Decoder) {
 				// R
-				fields := <-dec.Output()
+				fields := datapath.DecodeOpFields(<-dec.GetPin(Labels.OutFields))
+
 				if fields.Opcode != isa.Opcodes.R {
-					t.Errorf("unexpected field value %v", fields.Opcode)
+					t.Errorf("unexpected opcode %v", fields.Opcode)
 				}
 				if fields.Funct3 != 0 && fields.Funct7 != 0{
-					t.Errorf("unexpected functs value %d, %d", fields.Funct7, fields.Funct3)
+					t.Errorf("unexpected functs value %d, %d", fields.Funct3, fields.Funct7)
 				}
 
 				// RI
-				fields = <-dec.Output()
+				fields = datapath.DecodeOpFields(<-dec.GetPin(Labels.OutFields))
 				if fields.Opcode != isa.Opcodes.RI {
 					t.Errorf("unexpected field value %v", fields.Opcode)
 				}
+
 				if fields.Imm != 0b010001000010{
-					t.Errorf("unexpected imm value %d", fields.Imm)
+					t.Errorf("unexpected imm value %d",fields.Imm)
 				}
 
 				// Load
-				fields = <-dec.Output()
+				fields = datapath.DecodeOpFields(<-dec.GetPin(Labels.OutFields))
 				if fields.Opcode != isa.Opcodes.L {
 					t.Errorf("unexpected field value %v", fields.Opcode)
 				}
@@ -75,7 +78,7 @@ func TestDecoder_Run(t *testing.T) {
 				}
 
 				// Store
-				fields = <-dec.Output()
+				fields = datapath.DecodeOpFields(<-dec.GetPin(Labels.OutFields))
 				if fields.Opcode != isa.Opcodes.S {
 					t.Errorf("unexpected field value %v", fields.Opcode)
 				}
@@ -89,7 +92,7 @@ func TestDecoder_Run(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(*testing.T) {
 			dec := New()
-			dec.Input(test.setup(t))
+			dec.Connect(Labels.Instruction,test.setup(t))
 
 			if err := dec.Run(); err != nil {
 				t.Fatal(err)

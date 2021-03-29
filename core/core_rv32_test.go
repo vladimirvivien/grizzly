@@ -31,7 +31,7 @@ func TestCore_Run_Manual(t *testing.T) {
 	}
 
 	// stall to wait for all instructions before assessment
-	<-clock.New(100*time.Microsecond).Ticks()
+	<-clock.New(300*time.Microsecond).Ticks()
 	val := cor.reg.Probe(1)
 	if val!= 2{
 		t.Errorf("unexpected register value: x1=%d", val)
@@ -120,7 +120,7 @@ func BenchmarkCore_Run(b *testing.B) {
 		}
 
 		// stall to wait for all instructions before assessment
-		<-clock.New(time.Millisecond).Ticks()
+		<-time.After(time.Millisecond)
 		val := cor.reg.Probe(20)
 		if val!= 2{
 			b.Errorf("unexpected register value: x20=%d", val)

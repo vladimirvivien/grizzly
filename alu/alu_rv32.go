@@ -7,38 +7,46 @@ import (
 	"github.com/vladimirvivien/grizzly/isa/integer"
 )
 
+var(
+	Labels = struct{
+		InParams datapath.Pin
+		OutResult datapath.Pin
+	}{
+		InParams: datapath.Pin("alu.in.params"),
+		OutResult: datapath.Pin("alu.out.result"),
+	}
+)
+
 type ALU struct {
-	paramsInput  <-chan datapath.AluParam
-	resultOutput chan datapath.AluResult
+	*datapath.BaseComponent
+	output chan []byte
 }
 
 func New() *ALU {
-	return &ALU{
-		resultOutput: make(chan datapath.AluResult),
+	alu := &ALU{
+		BaseComponent: datapath.NewBase(),
+		output: make(chan []byte),
 	}
-}
-
-func (a *ALU) ParamsInput(ch <-chan datapath.AluParam) {
-	a.paramsInput = ch
-}
-
-func (a *ALU) ResultOutput() <-chan datapath.AluResult {
-	return a.resultOutput
+	alu.Connect(Labels.OutResult, alu.output)
+	return alu
 }
 
 func (a *ALU) Run() error {
-	if a.paramsInput == nil {
-		return fmt.Errorf("alu: missing params input")
+	input := a.GetPin(Labels.InParams)
+	if input == nil {
+		return fmt.Errorf("alu: missing input: %s", Labels.InParams)
 	}
 
 	go func() {
-		defer close(a.resultOutput)
-		result := a.resultOutput
+		defer close(a.output)
+		result := a.output
 		for {
-			params, opened := <-a.paramsInput
+			stream, opened := <-input
 			if !opened {
 				return
 			}
+
+			params := datapath.DecodeAluParams(stream)
 
 			var value datapath.XWord
 			switch {
@@ -106,7 +114,13 @@ func (a *ALU) Run() error {
 				value = params.Op1 & params.Op2
 			}
 
-			result <- datapath.AluResult{Opcode: params.Opcode, F3: params.Funct3, F7:params.Funct7, Value: value, Rd: params.Rd}
+			result <- datapath.EncodeAluResult(datapath.AluResult{
+				Opcode: params.Opcode,
+				Funct3: params.Funct3,
+				Funct7: params.Funct7,
+				Value:  value,
+				Rd:     params.Rd,
+			})
 		}
 	}()
 
@@ -118,18 +132,17 @@ func (a *ALU) Run() error {
 
 // mulh interpret operands as signed
 func mulh(data1, data2 datapath.XWord) datapath.XWord {
-	result := (int64(data1) * int64(data2)) >> datapath.Width32
+	result := (int64(data1) * int64(data2)) >> datapath.XWordLen
 	return datapath.XWord(result)
 }
 
 // mulhsu interpret operands as signed/unsigned
 func mulhsu(data1, data2 datapath.XWord) datapath.XWord {
-	result := (uint64(int32(data1)) * uint64(data2)) >> datapath.Width32
+	result := (uint64(int32(data1)) * uint64(data2)) >> datapath.XWordLen
 	return datapath.XWord(result)
 }
 
 func mulhu(data1, data2 datapath.XWord) datapath.XWord {
-	result := (uint64(data1) * uint64(data2)) >> datapath.Width32
+	result := (uint64(data1) * uint64(data2)) >> datapath.XWordLen
 	return datapath.XWord(result)
 }
-
