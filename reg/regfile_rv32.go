@@ -64,7 +64,7 @@ func (r RegisterFile) Run() error {
 		defer close(r.output)
 		for stream := range input {
 			op := datapath.DecodeOpFields(stream)
-			params := datapath.AluParams{
+			params := datapath.Operation{
 				Opcode: op.Opcode,
 				Rd:     op.Rd,
 				Funct3: op.Funct3,
@@ -82,7 +82,7 @@ func (r RegisterFile) Run() error {
 
 				// write output,
 				// wait for writeback signal before next read
-				r.output <- datapath.EncodeAluParams(params)
+				r.output <- datapath.EncodeOp(params)
 				<-r.writeSig
 
 			case isa.Opcodes.RI:
@@ -94,7 +94,7 @@ func (r RegisterFile) Run() error {
 					params.Op2 = op.Imm
 				}
 
-				r.output <- datapath.EncodeAluParams(params)
+				r.output <- datapath.EncodeOp(params)
 				<-r.writeSig
 			}
 		}
@@ -106,8 +106,8 @@ func (r RegisterFile) Run() error {
 	// proceed after a previous write.
 	go func() {
 		for dataStream := range inData {
-			data := datapath.DecodeRegisterData(dataStream)
-			r.write(data.Rd, data.Value)
+			data := datapath.DecodeRegStore(dataStream)
+			r.write(data.Rd, data.Data)
 			r.writeSig <- writeSignal{}
 		}
 	}()

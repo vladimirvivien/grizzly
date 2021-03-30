@@ -6,17 +6,66 @@ import (
 	"sync"
 
 	"github.com/vladimirvivien/grizzly/datapath"
+	"github.com/vladimirvivien/grizzly/isa"
 	"github.com/vladimirvivien/grizzly/isa/load"
 	"github.com/vladimirvivien/grizzly/isa/store"
 )
 
+var(
+	Labels = struct{
+		InOperation datapath.Pin
+		OutRegStore datapath.Pin
+	}{
+		InOperation: datapath.Pin("mem.in.operation"),
+		OutRegStore: datapath.Pin("mem.out.regstore"),
+	}
+)
 type Memory struct {
+	*datapath.BaseComponent
 	sync.RWMutex
 	store []byte
+	outReg chan []byte
 }
 
 func New(size uint64) *Memory {
-	return &Memory{store: make([]byte, size, size)}
+	mem := &Memory{
+		BaseComponent: datapath.NewBase(),
+		store: make([]byte, size, size),
+		outReg: make(chan []byte),
+	}
+	mem.Connect(Labels.OutRegStore, mem.outReg)
+	return  mem
+}
+
+func (m *Memory) Run() error {
+	ops := m.GetPin(Labels.InOperation)
+	if ops == nil {
+		return fmt.Errorf("memory: missing input: %s", Labels.InOperation)
+	}
+
+	go func() {
+		defer close(m.outReg)
+		for {
+			stream, opened := <-ops
+			if !opened {
+				return
+			}
+
+			op := datapath.DecodeMemOp(stream)
+			switch op.Opcode {
+			case isa.Opcodes.L:
+				data := m.read(op.Addr, op.Funct3)
+				m.outReg <- datapath.EncodeRegStore(datapath.RegisterStore{
+					Rd:   op.Rd,
+					Data: data,
+				})
+			case isa.Opcodes.S:
+				m.write(op.Addr,op.Data, op.Funct3)
+			}
+		}
+	}()
+
+	return nil
 }
 
 func (m *Memory) read(addr datapath.XWord, f3 uint8) datapath.XWord {
@@ -72,11 +121,7 @@ func (m *Memory) write(addr, value datapath.XWord, f3 uint8) {
 // assert address boundaries
 func (m *Memory) assertAddress(addr datapath.XWord) {
 	if addr > datapath.XWord(len(m.store)-datapath.XWordBytes) {
-		panic(fmt.Sprintf("mem: address %032b out of bound", addr))
-	}
-	bound := addr + datapath.XWordLen
-	if bound > datapath.XWord(len(m.store)) {
-		panic(fmt.Sprintf("mem: address %032b out of bound", addr))
+		panic(fmt.Sprintf("mem: address %d out of bound", addr))
 	}
 }
 

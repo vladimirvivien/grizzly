@@ -45,11 +45,11 @@ func (r *Router) Run() error {
 				return
 			}
 
-			result := datapath.DecodeAluResults(input)
+			result := datapath.DecodeResult(input)
 			switch result.Opcode {
 			case isa.Opcodes.R, isa.Opcodes.RI:
 				// route to register file
-				r.regDataOutput <- datapath.EncodeRegisterData(datapath.RegisterData{Rd: result.Rd, Value: result.Value})
+				r.regDataOutput <- datapath.EncodeRegStore(datapath.RegisterStore{Rd: result.Rd, Data: result.AluOut})
 			case isa.Opcodes.L:
 			}
 

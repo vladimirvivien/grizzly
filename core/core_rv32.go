@@ -11,10 +11,6 @@ import (
 	"github.com/vladimirvivien/grizzly/router"
 )
 
-type Component interface {
-	Run() error
-}
-
 type Core struct {
 	clock *clock.Clock
 	in datapath.Bytestream
@@ -44,23 +40,15 @@ func (c *Core) Run() error {
 }
 
 func (c *Core) wireDatapath() {
-	// wire decoder
-	c.dec.Input(c.in)
-
-	// wire register
-	c.reg.OpInput(c.dec.Output())
-
-	// wire alu
-	c.alu.ParamsInput(c.reg.AluParamsOutput())
-
-	// router
-	c.rout.AluResultInput(c.alu.ResultOutput())
-	c.reg.DataInput(c.rout.RegisterDataOutput())
-
+	c.dec.Connect(decoder.Labels.Instruction, c.in)
+	c.reg.Connect(reg.Labels.InFields, c.dec.GetPin(decoder.Labels.OutFields))
+	c.alu.Connect(alu.Labels.InParams, c.reg.GetPin(reg.Labels.OutAluParams))
+	c.rout.Connect(router.Labels.InAluResult, c.alu.GetPin(alu.Labels.OutResult))
+	c.reg.Connect(reg.Labels.InData, c.rout.GetPin(router.Labels.OutRegisterData))
 }
 
 func (c *Core) startComponents() error {
-	comps := []Component{c.dec, c.reg, c.alu, c.rout}
+	comps := []datapath.Component{c.dec, c.reg, c.alu, c.rout}
 	for _, comp := range comps {
 		if err := comp.Run(); err != nil {
 			return err

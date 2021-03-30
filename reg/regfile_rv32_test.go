@@ -99,7 +99,7 @@ func TestRegisterFile_Run_Op(t *testing.T) {
 			},
 			eval: func(t *testing.T, reg *RegisterFile) {
 				for output := range reg.GetPin(Labels.OutAluParams) {
-					param := datapath.DecodeAluParams(output)
+					param := datapath.DecodeOp(output)
 					if param.Opcode != 0b0110011 {
 						t.Errorf("unexpected ALUParam.opcode: %d", param.Opcode)
 					}
@@ -151,13 +151,13 @@ func TestRegisterFile_Run_Op(t *testing.T) {
 			},
 			eval: func(t *testing.T, reg *RegisterFile) {
 				// instruction 1
-				param := datapath.DecodeAluParams(<-reg.GetPin(Labels.OutAluParams))
+				param := datapath.DecodeOp(<-reg.GetPin(Labels.OutAluParams))
 				if param.Opcode != 0b0110011 {
 					t.Errorf("unexpected ALUParam.opcode: %d", param.Opcode)
 				}
 
 				// instruction 2
-				param = datapath.DecodeAluParams(<-reg.GetPin(Labels.OutAluParams))
+				param = datapath.DecodeOp(<-reg.GetPin(Labels.OutAluParams))
 				if param.Opcode != 0b0010011 {
 					t.Errorf("unexpected ALUParam.opcode: %d", param.Opcode)
 				}
@@ -169,7 +169,7 @@ func TestRegisterFile_Run_Op(t *testing.T) {
 				}
 
 				// instruction 3
-				param = datapath.DecodeAluParams(<-reg.GetPin(Labels.OutAluParams))
+				param = datapath.DecodeOp(<-reg.GetPin(Labels.OutAluParams))
 				if param.Opcode != 0b0010011 {
 					t.Errorf("unexpected ALUParam.opcode: %d", param.Opcode)
 				}
@@ -218,11 +218,11 @@ func TestRegisterFile_Run_Data(t *testing.T) {
 		{
 			name: "values",
 			data: map[uint8][]byte{
-				0:  datapath.EncodeRegisterData(datapath.RegisterData{Rd: 0, Value: 0}),
-				4:  datapath.EncodeRegisterData(datapath.RegisterData{Rd: 4, Value: math.MaxUint32}),
-				8:  datapath.EncodeRegisterData(datapath.RegisterData{Rd: 8, Value: math.MaxInt8}),
-				16: datapath.EncodeRegisterData(datapath.RegisterData{Rd: 16, Value: math.MaxInt16}),
-				31: datapath.EncodeRegisterData(datapath.RegisterData{Rd: 31, Value: math.MaxInt32}),
+				0:  datapath.EncodeRegStore(datapath.RegisterStore{Rd: 0, Data: 0}),
+				4:  datapath.EncodeRegStore(datapath.RegisterStore{Rd: 4, Data: math.MaxUint32}),
+				8:  datapath.EncodeRegStore(datapath.RegisterStore{Rd: 8, Data: math.MaxInt8}),
+				16: datapath.EncodeRegStore(datapath.RegisterStore{Rd: 16, Data: math.MaxInt16}),
+				31: datapath.EncodeRegStore(datapath.RegisterStore{Rd: 31, Data: math.MaxInt32}),
 			},
 		},
 	}
@@ -255,10 +255,10 @@ func TestRegisterFile_Run_Data(t *testing.T) {
 
 		// assess
 		for addr, stream := range test.data {
-			data := datapath.DecodeRegisterData(stream)
+			data := datapath.DecodeRegStore(stream)
 			actual := reg.Probe(addr)
-			if actual != data.Value {
-				t.Errorf("expecting RegisterData.Vallue %d, got %d", data.Value, actual)
+			if actual != data.Data {
+				t.Errorf("expecting RegisterStore.Vallue %d, got %d", data.Data, actual)
 			}
 		}
 	}

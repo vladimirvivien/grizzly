@@ -7,12 +7,12 @@ import (
 	"github.com/vladimirvivien/grizzly/isa/integer"
 )
 
-var(
-	Labels = struct{
-		InParams datapath.Pin
+var (
+	Labels = struct {
+		InParams  datapath.Pin
 		OutResult datapath.Pin
 	}{
-		InParams: datapath.Pin("alu.in.params"),
+		InParams:  datapath.Pin("alu.in.params"),
 		OutResult: datapath.Pin("alu.out.result"),
 	}
 )
@@ -25,7 +25,7 @@ type ALU struct {
 func New() *ALU {
 	alu := &ALU{
 		BaseComponent: datapath.NewBase(),
-		output: make(chan []byte),
+		output:        make(chan []byte),
 	}
 	alu.Connect(Labels.OutResult, alu.output)
 	return alu
@@ -46,7 +46,7 @@ func (a *ALU) Run() error {
 				return
 			}
 
-			params := datapath.DecodeAluParams(stream)
+			params := datapath.DecodeOp(stream)
 
 			var value datapath.XWord
 			switch {
@@ -114,12 +114,13 @@ func (a *ALU) Run() error {
 				value = params.Op1 & params.Op2
 			}
 
-			result <- datapath.EncodeAluResult(datapath.AluResult{
+			result <- datapath.EncodeResult(datapath.Result{
 				Opcode: params.Opcode,
 				Funct3: params.Funct3,
 				Funct7: params.Funct7,
-				Value:  value,
+				AluOut: value,
 				Rd:     params.Rd,
+				Data:   params.Data,
 			})
 		}
 	}()
