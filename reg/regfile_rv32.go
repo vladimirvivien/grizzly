@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/vladimirvivien/grizzly/alu"
 	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/isa"
 	"github.com/vladimirvivien/grizzly/isa/integer"
@@ -11,13 +12,15 @@ import (
 
 var(
 	Labels = struct {
-		InFields datapath.Pin
-		InData datapath.Pin
-		OutAluParams datapath.Pin
+		InFields  datapath.Pin
+		InAluData datapath.Pin
+		InMemData datapath.Pin
+		OutAluOps datapath.Pin
 	}{
-		InFields: datapath.Pin("regfile.in.opfields"),
-		InData: datapath.Pin("regfile.in.data"),
-		OutAluParams: datapath.Pin("regfile.out.aluparams"),
+		InFields:  datapath.Pin("regfile.in.opfields"),
+		InAluData: datapath.Pin("regfile.in.alu_data"),
+		InMemData: datapath.Pin("regfile.in.mem_data"),
+		OutAluOps: datapath.Pin("regfile.out.alu_ops"),
 	}
 )
 
@@ -38,7 +41,7 @@ func New() *RegisterFile {
 		file:     make(regfile, datapath.RegSize, datapath.RegSize),
 		output:   make(chan []byte),
 	}
-	reg.Connect(Labels.OutAluParams, reg.output)
+	reg.Connect(Labels.OutAluOps, reg.output)
 	return reg
 }
 
@@ -49,69 +52,91 @@ func (r RegisterFile) Run() error {
 	if input == nil {
 		return fmt.Errorf("register file: missing input: %s", Labels.InFields)
 	}
-	inData := r.GetPin(Labels.InData)
-	if inData == nil {
-		return fmt.Errorf("register file: missing data input: %s", Labels.InData)
+	inAluData := r.GetPin(Labels.InAluData)
+	if inAluData == nil {
+		return fmt.Errorf("register file: missing data input: %s", Labels.InAluData)
+	}
+	inMemData := r.GetPin(Labels.InMemData)
+	if inMemData == nil {
+		return fmt.Errorf("register file: missing data input: %s", Labels.InMemData)
 	}
 
 	// Register instruction input loop
-	// This loop handles operation fields from the decoder.
-	// Once processed, the register will setup control operations
-	// and prepare operands for the ALU.
-	// A semaphore signal is used to wait for writebacks
+	// This input loop handles operation fields from the decoder.
+	// A semaphore signal is used to wait for data_store
 	// from operations (Op.R, Op.RI, Op.L, etc) which requires it.
 	go func() {
 		defer close(r.output)
 		for stream := range input {
-			op := datapath.DecodeOpFields(stream)
-			params := datapath.Operation{
-				Opcode: op.Opcode,
-				Rd:     op.Rd,
-				Funct3: op.Funct3,
-				Funct7: op.Funct7,
+			fields := datapath.DecodeOpFields(stream)
+			op := datapath.Operation{
+				Opcode: fields.Opcode,
+				Rd:     fields.Rd,
 			}
 
 			// Select ALU operands:
-			// Select between register data
-			// or immediate values to send to
-			// ALU.
-			switch op.Opcode {
+			switch fields.Opcode {
 			case isa.Opcodes.R:
-				params.Op1 = r.read(op.Rs1)
-				params.Op2 = r.read(op.Rs2)
+				op.AluOp = alu.EncodeAluOp(fields.Funct7, fields.Funct3)
+				op.AluOperand1 = r.read(fields.Rs1)
+				op.AluOperand2 = r.read(fields.Rs2)
 
-				// write output,
-				// wait for writeback signal before next read
-				r.output <- datapath.EncodeOp(params)
-				<-r.writeSig
+				r.output <- datapath.EncodeOp(op)
+				<-r.writeSig // wait for reg data writeback
 
 			case isa.Opcodes.RI:
-				params.Op1 = r.read(op.Rs1)
-				switch op.Funct3 {
+				op.AluOp = alu.EncodeAluOp(fields.Funct7, fields.Funct3)
+				op.AluOperand1 = r.read(fields.Rs1)
+				switch fields.Funct3 {
 				case integer.Slli.F3, integer.Srli.F3, integer.Srai.F3:
-					params.Op2 = datapath.XWord(op.Shift)
+					op.AluOperand2 = datapath.XWord(fields.Shift)
 				default:
-					params.Op2 = op.Imm
+					op.AluOperand2 = fields.Imm
 				}
 
-				r.output <- datapath.EncodeOp(params)
+				r.output <- datapath.EncodeOp(op)
 				<-r.writeSig
+
+			case isa.Opcodes.L:
+				op.AluOp = alu.Ops.Add
+				op.AluOperand1 = r.read(fields.Rs1)
+				op.AluOperand2 = fields.Imm
+				r.output <- datapath.EncodeOp(op)
+				<- r.writeSig
+
+			case isa.Opcodes.S:
+				op.AluOp = alu.Ops.Add
+				op.AluOperand1 = r.read(fields.Rs1)
+				op.AluOperand2 = fields.Imm
+				op.MemData = r.read(fields.Rs2)
+				r.output <- datapath.EncodeOp(op)
 			}
 		}
 	}()
 
-	// Register data input loop
-	// Handles register data storage request from downsream operations.
+	// ALU-to-register data store input loop
+	// Handles register data storage writebacks from ALU for R-type operations.
 	// A semaphore signal is used to ensure that the read-loop can only
 	// proceed after a previous write.
 	go func() {
-		for dataStream := range inData {
+		for dataStream := range inAluData {
 			data := datapath.DecodeRegStore(dataStream)
-			r.write(data.Rd, data.Data)
+			r.write(data.Rd, data.Value)
 			r.writeSig <- writeSignal{}
 		}
 	}()
 
+	// Memory-to-register data store input loop
+	// Handles register data storage writebacks from Memory operations.
+	// A semaphore signal is used to ensure that the read-loop can only
+	// proceed after a previous write.
+	go func() {
+		for dataStream := range inMemData {
+			data := datapath.DecodeRegStore(dataStream)
+			r.write(data.Rd, data.Value)
+			r.writeSig <- writeSignal{}
+		}
+	}()
 	return nil
 }
 

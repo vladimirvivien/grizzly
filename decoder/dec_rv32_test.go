@@ -74,7 +74,7 @@ func TestDecoder_Run(t *testing.T) {
 					t.Errorf("unexpected imm value %d", fields.Imm)
 				}
 				if fields.Funct3 != 0b101{
-					t.Errorf("unexpected Funct3 value %d", fields.Funct3)
+					t.Errorf("unexpected Op value %d", fields.Funct3)
 				}
 
 				// Store

@@ -64,7 +64,7 @@ func TestMemory_Run_Read(t *testing.T) {
 			opCh <- datapath.EncodeMemOp(datapath.MemOp{
 				Opcode: isa.Opcodes.L,
 				Rd:     5,
-				Funct3: load.Lw.F3,
+				Op:     load.Lw.F3,
 				Addr:   datapath.XWord(i),
 			})
 		}
@@ -74,7 +74,7 @@ func TestMemory_Run_Read(t *testing.T) {
 	waiter := make(chan struct{})
 	go func() {
 		defer close(waiter)
-		output := mem.GetPin(Labels.OutRegStore)
+		output := mem.GetPin(Labels.OutRegData)
 		i := 0
 		for {
 			stream, opened := <-output
@@ -85,7 +85,7 @@ func TestMemory_Run_Read(t *testing.T) {
 			if rs.Rd != 5 {
 				t.Errorf("unexpected regStore.Rd: %d", rs.Rd)
 			}
-			if rs.Data != datapath.XWord(i*0x11223344) {
+			if rs.Value != datapath.XWord(i*0x11223344) {
 				t.Errorf("unexpected data loaded")
 			}
 			i += datapath.XWordBytes
@@ -95,7 +95,7 @@ func TestMemory_Run_Read(t *testing.T) {
 	select {
 	case <-waiter:
 	case <-time.After(50 * time.Millisecond):
-		t.Fatal("Register operations took too long to complete")
+		t.Fatal("Memory operations took too long to complete")
 	}
 }
 
@@ -118,7 +118,7 @@ func TestMemory_Run_Write(t *testing.T) {
 			}
 			opCh <- datapath.EncodeMemOp(datapath.MemOp{
 				Opcode: isa.Opcodes.S,
-				Funct3: store.Sw.F3,
+				Op:     store.Sw.F3,
 				Addr:   datapath.XWord(i),
 				Data:   datapath.XWord(i * 0x11223344),
 			})
@@ -130,7 +130,7 @@ func TestMemory_Run_Write(t *testing.T) {
 	select {
 	case <-waiter:
 	case <-time.After(50 * time.Millisecond):
-		t.Fatal("Register operations took too long to complete")
+		t.Fatal("Memory operations took too long to complete")
 	}
 
 	// test mem

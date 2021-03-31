@@ -7,8 +7,8 @@ import (
 	"github.com/vladimirvivien/grizzly/clock"
 	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/decoder"
+	"github.com/vladimirvivien/grizzly/mem"
 	"github.com/vladimirvivien/grizzly/reg"
-	"github.com/vladimirvivien/grizzly/router"
 )
 
 type Core struct {
@@ -17,7 +17,7 @@ type Core struct {
 	dec *decoder.Decoder
 	reg *reg.RegisterFile
 	alu *alu.ALU
-	rout *router.Router
+	mem *mem.Memory
 }
 
 func New() *Core {
@@ -26,7 +26,7 @@ func New() *Core {
 		dec: decoder.New(),
 		reg: reg.New(),
 		alu: alu.New(),
-		rout: router.New(),
+		mem: mem.New(1024*1000),
 	}
 }
 
@@ -40,16 +40,23 @@ func (c *Core) Run() error {
 }
 
 func (c *Core) wireDatapath() {
+	// decoder <- mem: instruction
 	c.dec.Connect(decoder.Labels.Instruction, c.in)
+	// reg <- decoder: op fields
 	c.reg.Connect(reg.Labels.InFields, c.dec.GetPin(decoder.Labels.OutFields))
-	c.alu.Connect(alu.Labels.InParams, c.reg.GetPin(reg.Labels.OutAluParams))
-	c.rout.Connect(router.Labels.InAluResult, c.alu.GetPin(alu.Labels.OutResult))
-	c.reg.Connect(reg.Labels.InData, c.rout.GetPin(router.Labels.OutRegisterData))
+	// alu <- reg: Operation
+	c.alu.Connect(alu.Labels.InOperations, c.reg.GetPin(reg.Labels.OutAluOps))
+	// register <- alu: register data
+	c.reg.Connect(reg.Labels.InAluData, c.alu.GetPin(alu.Labels.OutRegData))
+	// mem <- alu: mem op
+	c.mem.Connect(mem.Labels.InOperation, c.alu.GetPin(alu.Labels.OutMemOp))
+	// register <- mem: register data
+	c.reg.Connect(reg.Labels.InMemData, c.mem.GetPin(mem.Labels.OutRegData))
 }
 
 func (c *Core) startComponents() error {
-	comps := []datapath.Component{c.dec, c.reg, c.alu, c.rout}
-	for _, comp := range comps {
+	components := []datapath.Component{c.dec, c.reg, c.alu, c.mem}
+	for _, comp := range components {
 		if err := comp.Run(); err != nil {
 			return err
 		}

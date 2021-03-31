@@ -37,7 +37,7 @@ type SXWord = int32
 // 0       1       2       3       4       5       6
 // 01234567012345670123456701234567012345670123456701234567
 // +-------+-------+-------+-------+-------+-------+------+
-// |OpCode |   Rd  |Funct3 |   Rs1 |  Rs2  |Funct7 |Shift |
+// |OpCode |   Rd  |Op |   Rs1 |  Rs2  |Funct7 |Shift |
 // +-------+-------+-------+-------+-------+-------+------+
 // |               Imm             |
 // +-------------------------------+
@@ -85,34 +85,38 @@ func EncodeOpFields(f OpFields) []byte {
 // 0       1       2       3       4       5       6       7
 // 0123456701234567012345670123456701234567012345670123456701234567
 // +-------+-------+-------+-------+-------+-------+------+-------+
-// |OpCode |   Rd  |Funct3 |Funct7 |              Op1             |
+// |OpCode |   Rd  | AluOp |           AluOperand1        |
 // +-------+-------+-------+-------+-------+-------+------+-------+
-// |               Op2             |              Data            |
-// +-------------------------------+------------------------------+
+//        AluOperand2      | MemOp |              MemData         |
+// +-------+-----------------------+------------------------------+
+//
 //
 type Operation struct {
+	// inst fields
 	Opcode,
-	Rd,
-	Funct3,
-	Funct7 uint8
 
-	// ALU operations
-	Op1,
-	Op2 XWord
+	// register store
+	Rd uint8
 
-	// Memory operation
-	Data XWord
+	// ALU operation
+	AluOp uint8
+	AluOperand1,
+	AluOperand2 XWord
+
+	// Mem operation
+	MemOp   uint8
+	MemData XWord
 }
 
 func DecodeOp(s []byte) Operation {
 	return Operation{
-		Opcode: s[0],
-		Rd:     s[1],
-		Funct3: s[2],
-		Funct7: s[3],
-		Op1:    binary.LittleEndian.Uint32(s[4:]),
-		Op2:    binary.LittleEndian.Uint32(s[8:]),
-		Data:   binary.LittleEndian.Uint32(s[12:]),
+		Opcode:      s[0],
+		Rd:          s[1],
+		AluOp:       s[2],
+		AluOperand1: binary.LittleEndian.Uint32(s[3:]),
+		AluOperand2: binary.LittleEndian.Uint32(s[7:]),
+		MemOp:       s[11],
+		MemData:     binary.LittleEndian.Uint32(s[12:]),
 	}
 }
 
@@ -120,84 +124,39 @@ func EncodeOp(a Operation) []byte {
 	buf := make([]byte, 16, 16)
 	buf[0] = a.Opcode
 	buf[1] = a.Rd
-	buf[2] = a.Funct3
-	buf[3] = a.Funct7
-	binary.LittleEndian.PutUint32(buf[4:], a.Op1)
-	binary.LittleEndian.PutUint32(buf[8:], a.Op2)
-	binary.LittleEndian.PutUint32(buf[12:], a.Data)
+	buf[2] = a.AluOp
+	binary.LittleEndian.PutUint32(buf[3:], a.AluOperand1)
+	binary.LittleEndian.PutUint32(buf[7:], a.AluOperand2)
+	buf[11] = a.MemOp
+	binary.LittleEndian.PutUint32(buf[12:], a.MemData)
 	return buf
 }
 
-// Result represents the operation result from the ALU.
-// The bytestrem for the result is encoded with the following layout:
-//
-// 0       1       2       3       4       5       6       7
-// 0123456701234567012345670123456701234567012345670123456701234567
-// +-------+-------+-------+-------+-------+-------+------+-------+
-// |OpCode |   Rd  |Funct3 |Funct7 |              AluOut           |
-// +-------+-------+-------+-------+-------+-------+------+-------+
-// |               Data            |
-// +-------------------------------+
-//
-type Result struct {
-	Opcode         uint8
-	Rd             uint8
-	Funct3, Funct7 uint8
-
-	// ALU output result
-	AluOut XWord
-
-	// Memory Op
-	Data XWord
-}
-
-func DecodeResult(s []byte) Result {
-	return Result{
-		Opcode: s[0],
-		Rd:     s[1],
-		Funct3: s[2],
-		Funct7: s[3],
-		AluOut: binary.LittleEndian.Uint32(s[4:]),
-		Data:   binary.LittleEndian.Uint32(s[8:]),
-	}
-}
-
-func EncodeResult(a Result) []byte {
-	buf := make([]byte, 12, 12)
-	buf[0] = a.Opcode
-	buf[1] = a.Rd
-	buf[2] = a.Funct3
-	buf[3] = a.Funct7
-	binary.LittleEndian.PutUint32(buf[4:], a.AluOut)
-	binary.LittleEndian.PutUint32(buf[8:], a.Data)
-	return buf
-}
-
-// RegisterStore represents data to be stored in the register at the end of an operation.
+// RegisterData represents data to be stored in the register at the end of an operation.
 // The bytestrem for register data is encoded with the following layout:
 //
 // 0       1       2       3       4
 // 0123456701234567012345670123456701234567
 // +-------+-------+-------+-------+-------+
-// |Rd     |              Data            |
+// |Rd     |              Value            |
 // +-------+-------+-------+-------+-------+
 //
-type RegisterStore struct {
-	Rd   uint8
-	Data XWord
+type RegisterData struct {
+	Rd    uint8
+	Value XWord
 }
 
-func DecodeRegStore(s []byte) RegisterStore {
-	return RegisterStore{
-		Rd:   s[0],
-		Data: binary.LittleEndian.Uint32(s[1:]),
+func DecodeRegStore(s []byte) RegisterData {
+	return RegisterData{
+		Rd:    s[0],
+		Value: binary.LittleEndian.Uint32(s[1:]),
 	}
 }
 
-func EncodeRegStore(r RegisterStore) []byte {
+func EncodeRegStore(r RegisterData) []byte {
 	buf := make([]byte, 5, 5)
 	buf[0] = r.Rd
-	binary.LittleEndian.PutUint32(buf[1:], r.Data)
+	binary.LittleEndian.PutUint32(buf[1:], r.Value)
 	return buf
 }
 
@@ -207,15 +166,18 @@ func EncodeRegStore(r RegisterStore) []byte {
 // 0       1       2       3       4       5       6       7
 // 0123456701234567012345670123456701234567012345670123456701234567
 // +-------+-------+-------+-------+-------+-------+------+-------+
-// |OpCode |   Rd  |Funct3 |              Addr            |
+// |OpCode |   Rd  |   Op  |              Addr            |
 // +-------+-------+-------+-------+-------+-------+------+-------+
 //            Data         |
 // +-------+-------+-------+
 type MemOp struct {
 	Opcode,
-	Rd,
-	Funct3 uint8
 
+	// reg store
+	Rd,
+
+	// memory op params
+	Op uint8
 	Addr XWord
 	Data XWord
 }
@@ -224,7 +186,7 @@ func DecodeMemOp(s []byte) MemOp {
 	return MemOp{
 		Opcode: s[0],
 		Rd:     s[1],
-		Funct3: s[2],
+		Op:     s[2],
 		Addr:   binary.LittleEndian.Uint32(s[3:]),
 		Data:   binary.LittleEndian.Uint32(s[7:]),
 	}
@@ -234,7 +196,7 @@ func EncodeMemOp(o MemOp) []byte {
 	buf := make([]byte, 12, 12)
 	buf[0] = o.Opcode
 	buf[1] = o.Rd
-	buf[2] = o.Funct3
+	buf[2] = o.Op
 	binary.LittleEndian.PutUint32(buf[3:], o.Addr)
 	binary.LittleEndian.PutUint32(buf[7:], o.Data)
 	return buf

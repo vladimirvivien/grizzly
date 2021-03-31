@@ -27,18 +27,19 @@ main:
 Next, use the RISC-V GNU compiler to build a binary:
 
 ```shell
-riscv64-unknown-elf-gcc -Wl,-Ttext=0x0 -nostdlib -march=rv32i -mabi=ilp32 -o add add.s
+riscv64-unknown-elf-gcc -Wl,-Ttext=0x0 -nostdlib -march=rv32i -mabi=ilp32 -o testprog testprog.s
 ```
 
 After that, use GNU's object-copy utility to generate a raw binary dump, from the compiled object file, which can be loaded in the simulated memory for execution.
 
 ```shell
-riscv64-unknown-elf-objcopy --output-target=binary add add.bin
+riscv64-unknown-elf-objcopy --output-target=binary testprog testprog.bin
 ```
 
 You can also get an assembly dump from the built object file using object dump utility to disassemble the built object file:
 ```shell
-riscv64-unknown-elf-objdump -Ds add > add-dump.s
+riscv64-unknown-elf-objdump -Ds testprog > testprog-dump.s
 ```
 
 ### RV64 Programs
+TODO

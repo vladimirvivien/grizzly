@@ -104,7 +104,7 @@ func TestDecoder(t *testing.T) {
 				t.Errorf("unexpected RD field value %08b", fields.Rd)
 			}
 			if fields.Funct3 != test.fields.Funct3 {
-				t.Errorf("unexpected Funct3 field value %08b", fields.Funct3)
+				t.Errorf("unexpected Op field value %08b", fields.Funct3)
 			}
 			if fields.Rs1 != test.fields.Rs1 {
 				t.Errorf("unexpected RS1 field value %08b", fields.Rs1)

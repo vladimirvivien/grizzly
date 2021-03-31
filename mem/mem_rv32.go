@@ -14,10 +14,10 @@ import (
 var(
 	Labels = struct{
 		InOperation datapath.Pin
-		OutRegStore datapath.Pin
+		OutRegData  datapath.Pin
 	}{
 		InOperation: datapath.Pin("mem.in.operation"),
-		OutRegStore: datapath.Pin("mem.out.regstore"),
+		OutRegData:  datapath.Pin("mem.out.reg_data"),
 	}
 )
 type Memory struct {
@@ -33,7 +33,7 @@ func New(size uint64) *Memory {
 		store: make([]byte, size, size),
 		outReg: make(chan []byte),
 	}
-	mem.Connect(Labels.OutRegStore, mem.outReg)
+	mem.Connect(Labels.OutRegData, mem.outReg)
 	return  mem
 }
 
@@ -54,13 +54,13 @@ func (m *Memory) Run() error {
 			op := datapath.DecodeMemOp(stream)
 			switch op.Opcode {
 			case isa.Opcodes.L:
-				data := m.read(op.Addr, op.Funct3)
-				m.outReg <- datapath.EncodeRegStore(datapath.RegisterStore{
-					Rd:   op.Rd,
-					Data: data,
+				data := m.read(op.Addr, op.Op)
+				m.outReg <- datapath.EncodeRegStore(datapath.RegisterData{
+					Rd:    op.Rd,
+					Value: data,
 				})
 			case isa.Opcodes.S:
-				m.write(op.Addr,op.Data, op.Funct3)
+				m.write(op.Addr,op.Data, op.Op)
 			}
 		}
 	}()

@@ -4,124 +4,126 @@ import (
 	"fmt"
 
 	"github.com/vladimirvivien/grizzly/datapath"
-	"github.com/vladimirvivien/grizzly/isa/integer"
+	"github.com/vladimirvivien/grizzly/isa"
 )
 
 var (
 	Labels = struct {
-		InParams  datapath.Pin
-		OutResult datapath.Pin
+		InOperations datapath.Pin
+		OutRegData   datapath.Pin
+		OutMemOp     datapath.Pin
 	}{
-		InParams:  datapath.Pin("alu.in.params"),
-		OutResult: datapath.Pin("alu.out.result"),
+		InOperations: datapath.Pin("alu.in.operations"),
+		OutRegData:   datapath.Pin("alu.out.reg_data"),
+		OutMemOp:     datapath.Pin("alu.out.mem_op"),
 	}
 )
 
 type ALU struct {
 	*datapath.BaseComponent
-	output chan []byte
+	outReg chan []byte
+	outMem chan []byte
 }
 
 func New() *ALU {
 	alu := &ALU{
 		BaseComponent: datapath.NewBase(),
-		output:        make(chan []byte),
+		outReg:        make(chan []byte),
+		outMem:        make(chan []byte),
 	}
-	alu.Connect(Labels.OutResult, alu.output)
+	alu.Connect(Labels.OutRegData, alu.outReg)
+	alu.Connect(Labels.OutMemOp, alu.outMem)
 	return alu
 }
 
 func (a *ALU) Run() error {
-	input := a.GetPin(Labels.InParams)
+	input := a.GetPin(Labels.InOperations)
 	if input == nil {
-		return fmt.Errorf("alu: missing input: %s", Labels.InParams)
+		return fmt.Errorf("alu: missing input: %s", Labels.InOperations)
 	}
 
 	go func() {
-		defer close(a.output)
-		result := a.output
+		defer close(a.outReg)
+		defer close(a.outMem)
+
 		for {
 			stream, opened := <-input
 			if !opened {
 				return
 			}
 
-			params := datapath.DecodeOp(stream)
+			operation := datapath.DecodeOp(stream)
 
-			var value datapath.XWord
-			switch {
+			var result datapath.XWord
+			switch operation.AluOp {
 			case
 				// addition: add, addi
-				params.Funct7 == integer.Add.F7 && params.Funct3 == integer.Add.F3,
-				params.Funct7 == integer.Addi.F7 && params.Funct3 == integer.Addi.F3:
-				value = params.Op1 + params.Op2
+				Ops.Add:
+				result = operation.AluOperand1 + operation.AluOperand2
 
 			case
 				// subtraction: sub
-				params.Funct7 == integer.Sub.F7 && params.Funct3 == integer.Sub.F3:
-				value = params.Op1 - params.Op2
+				Ops.Sub:
+				result = operation.AluOperand1 - operation.AluOperand2
 
 			case
 				// shift logical left: sll, slli
-				params.Funct7 == integer.Sll.F7 && params.Funct3 == integer.Sll.F3,
-				params.Funct7 == integer.Slli.F7 && params.Funct3 == integer.Slli.F3:
-				value = params.Op1 << params.Op2
+				Ops.Sll:
+				result = operation.AluOperand1 << operation.AluOperand2
 
 			case
 				// set if less then (signed): slt, slti
-				params.Funct7 == integer.Slt.F7 && params.Funct3 == integer.Slt.F3,
-				params.Funct7 == integer.Slti.F7 && params.Funct3 == integer.Slti.F3:
-				if datapath.SXWord(params.Op1) < datapath.SXWord(params.Op2) {
-					value = 1
+				Ops.Slt:
+				if datapath.SXWord(operation.AluOperand1) < datapath.SXWord(operation.AluOperand2) {
+					result = 1
 				}
 
 			case
 				// set if less then (unsigned): sltu, sltiu
-				params.Funct7 == integer.Sltu.F7 && params.Funct3 == integer.Sltu.F3,
-				params.Funct7 == integer.Sltiu.F7 && params.Funct3 == integer.Sltiu.F3:
-				if params.Op1 < params.Op2 {
-					value = 1
+				Ops.Sltu:
+				if operation.AluOperand1 < operation.AluOperand2 {
+					result = 1
 				}
 
 			case
 				// xor, xori
-				params.Funct7 == integer.Xor.F7 && params.Funct3 == integer.Xor.F3,
-				params.Funct7 == integer.Xori.F7 && params.Funct3 == integer.Xori.F3:
-				value = params.Op1 ^ params.Op2
+				Ops.Xor:
+				result = operation.AluOperand1 ^ operation.AluOperand2
 
 			case
 				// shift right logical: srl, srli
-				params.Funct7 == integer.Srl.F7 && params.Funct3 == integer.Srl.F3,
-				params.Funct7 == integer.Srli.F7 && params.Funct3 == integer.Srli.F3:
-				value = params.Op1 >> params.Op2
+				Ops.Srl:
+				result = operation.AluOperand1 >> operation.AluOperand2
 
 			case
 				// shift right arithmetic: sra, srai
-				params.Funct7 == integer.Sra.F7 && params.Funct3 == integer.Sra.F3,
-				params.Funct7 == integer.Srai.F7 && params.Funct3 == integer.Srai.F3:
-				value = datapath.XWord(datapath.SXWord(params.Op1) >> params.Op2)
+				Ops.Sra:
+				result = datapath.XWord(datapath.SXWord(operation.AluOperand1) >> operation.AluOperand2)
 
 			case
 				// or, ori
-				params.Funct7 == integer.Or.F7 && params.Funct3 == integer.Or.F3,
-				params.Funct7 == integer.Ori.F7 && params.Funct3 == integer.Ori.F3:
-				value = params.Op1 | params.Op2
+				Ops.Or:
+				result = operation.AluOperand1 | operation.AluOperand2
 
 			case
 				// and, andi
-				params.Funct7 == integer.And.F7 && params.Funct3 == integer.And.F3,
-				params.Funct7 == integer.Andi.F7 && params.Funct3 == integer.Andi.F3:
-				value = params.Op1 & params.Op2
+				Ops.And:
+				result = operation.AluOperand1 & operation.AluOperand2
 			}
 
-			result <- datapath.EncodeResult(datapath.Result{
-				Opcode: params.Opcode,
-				Funct3: params.Funct3,
-				Funct7: params.Funct7,
-				AluOut: value,
-				Rd:     params.Rd,
-				Data:   params.Data,
-			})
+			// route alu regStor to other components
+			switch operation.Opcode {
+			case isa.Opcodes.R, isa.Opcodes.RI:
+				a.outReg <- datapath.EncodeRegStore(datapath.RegisterData{Rd: operation.Rd, Value: result})
+			case isa.Opcodes.L, isa.Opcodes.S:
+				a.outMem <- datapath.EncodeMemOp(datapath.MemOp{
+					Opcode: operation.Opcode,
+					Rd:     operation.Rd,
+					Op:     operation.MemOp,
+					Addr:   result,
+					Data:   operation.MemData,
+				})
+			}
 		}
 	}()
 

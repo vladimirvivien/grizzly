@@ -47,7 +47,7 @@ func TestDecode(t *testing.T) {
 				t.Errorf("Unexpected Opcode %05b for op %s: %#v", fields.Opcode, test.name, fields)
 			}
 			if fields.Funct3 != test.fields.Funct3 {
-				t.Errorf("Operation %s has unexpected Funct3 %b", test.name, fields.Funct3)
+				t.Errorf("Operation %s has unexpected Op %b", test.name, fields.Funct3)
 			}
 			if fields.Rd != test.fields.Rd {
 				t.Errorf("Operation %s has unexpected RD %b", test.name, fields.Rd)
