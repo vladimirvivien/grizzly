@@ -1,7 +1,6 @@
 package decoder
 
 import (
-	"encoding/binary"
 	"fmt"
 
 	"github.com/vladimirvivien/grizzly/datapath"
@@ -23,13 +22,13 @@ var (
 
 type Decoder struct {
 	*datapath.BaseComponent
-	out   chan []byte
+	out chan []byte
 }
 
 func New() *Decoder {
 	dec := &Decoder{
 		BaseComponent: datapath.NewBase(),
-		out: make(chan []byte),
+		out:           make(chan []byte),
 	}
 	dec.Connect(Labels.OutFields, dec.out)
 	return dec
@@ -52,17 +51,17 @@ func (d *Decoder) Run() error {
 				return
 			}
 
-			inst := instFromStream(bits)
-			opcode := isa.GetOpcode(inst)
+			inst := datapath.DecodeInstruction(bits)
+			opcode := isa.GetOpcode(inst.Inst)
 
 			var fields datapath.OpFields
 			switch opcode {
 			case isa.Opcodes.R, isa.Opcodes.RI:
-				fields = integer.Decode(inst)
+				fields = integer.Decode(inst.Inst)
 			case isa.Opcodes.L:
-				fields = load.Decode(inst)
+				fields = load.Decode(inst.Inst)
 			case isa.Opcodes.S:
-				fields = store.Decode(inst)
+				fields = store.Decode(inst.Inst)
 			}
 
 			d.out <- datapath.EncodeOpFields(fields)
@@ -71,10 +70,4 @@ func (d *Decoder) Run() error {
 	}()
 
 	return nil
-}
-
-// decodeFromStream decodes input from stream to
-// instruction Word
-func instFromStream(bits []byte) datapath.XWord {
-	return binary.LittleEndian.Uint32(bits)
 }

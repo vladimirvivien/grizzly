@@ -31,6 +31,37 @@ const (
 type XWord = uint32
 type SXWord = int32
 
+// Instruction represents the instruction value at the
+// specified PC from the instruction memory. The bytestream
+// for Instruction is shown below:
+//
+//
+// 0       1       2       3       4       5       6       7
+// 0123456701234567012345670123456701234567012345670123456701234567
+// +-------+-------+-------+-------+-------+-------+------+-------+
+// |               PC              |              Ins             |
+// +-------+-------+-------+-------+-------+-------+------+-------+
+//
+//
+type Instruction struct {
+	PC   XWord
+	Inst XWord
+}
+
+func DecodeInstruction(stream []byte) Instruction {
+	return Instruction{
+		PC:   binary.LittleEndian.Uint32(stream[0:]),
+		Inst: binary.LittleEndian.Uint32(stream[4:]),
+	}
+}
+
+func EncodeInstruction(ins Instruction) []byte {
+	buf := make([]byte, 8, 8)
+	binary.LittleEndian.PutUint32(buf[0:], ins.PC)
+	binary.LittleEndian.PutUint32(buf[4:], ins.Inst)
+	return buf
+}
+
 // OpFields represent the operation and data fields decoded from the instruction.
 // The bytestream from the decoder will have the following layout:
 //
