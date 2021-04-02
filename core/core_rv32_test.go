@@ -14,11 +14,11 @@ func TestCore_Run_Manual(t *testing.T) {
 	cor := New()
 	ch := make(chan []byte)
 	cor.Input(ch)
-	go func(){
+	go func() {
 		// data load
-		ch <- instToStream(0b000000000010_00000_000_00001_0010011)  // addi x1, x0, 2;  load x1=2
-		ch <- instToStream(0b000000000100_00000_000_00010_0010011)  // addi x2, x0, 4;  load x2=4
-		ch <- instToStream(0b000000001100_00000_000_00111_0010011)  // addi x7, x0, 12; load x7=12
+		ch <- instToStream(0b000000000010_00000_000_00001_0010011) // addi x1, x0, 2;  load x1=2
+		ch <- instToStream(0b000000000100_00000_000_00010_0010011) // addi x2, x0, 4;  load x2=4
+		ch <- instToStream(0b000000001100_00000_000_00111_0010011) // addi x7, x0, 12; load x7=12
 
 		ch <- instToStream(0b000000000100_00001_000_00101_0010011)  // addi x5, x1, 4;  x5=6
 		ch <- instToStream(0b0000000_00010_00111_000_00011_0110011) // add  x3, x7, x2; x3=16
@@ -31,29 +31,29 @@ func TestCore_Run_Manual(t *testing.T) {
 	}
 
 	// stall to wait for all instructions before assessment
-	<-clock.New(300*time.Microsecond).Ticks()
+	<-clock.New(300 * time.Microsecond).Ticks()
 	val := cor.reg.Probe(1)
-	if val!= 2{
+	if val != 2 {
 		t.Errorf("unexpected register value: x1=%d", val)
 	}
 	val = cor.reg.Probe(2)
-	if val!= 4{
+	if val != 4 {
 		t.Errorf("unexpected register value: x2=%d", val)
 	}
 	val = cor.reg.Probe(7)
-	if val!= 12{
+	if val != 12 {
 		t.Errorf("unexpected register value: x7=%d", val)
 	}
 	val = cor.reg.Probe(5)
-	if val!= 6{
+	if val != 6 {
 		t.Errorf("unexpected register value: x5=%d", val)
 	}
 	val = cor.reg.Probe(3)
-	if val!= 16{
+	if val != 16 {
 		t.Errorf("unexpected register value: x3=%d", val)
 	}
 	val = cor.reg.Probe(6)
-	if val!= 8{
+	if val != 8 {
 		t.Errorf("unexpected register value: reg[6]=%d", val)
 	}
 }
@@ -69,7 +69,7 @@ func TestCore_Run_Manual(t *testing.T) {
 //
 func TestCore_Run_Stream(t *testing.T) {
 	stream, err := coretest.StreamFromFile("../testing/programs/rtypes_rv32/add.bin")
-	if err != nil{
+	if err != nil {
 		t.Fatal(err)
 	}
 	cor := New()
@@ -81,36 +81,36 @@ func TestCore_Run_Stream(t *testing.T) {
 	// stall to wait for all instructions before assessment
 	<-clock.New(300 * time.Microsecond).Ticks()
 	val := cor.reg.Probe(20)
-	if val!= 2{
+	if val != 2 {
 		t.Errorf("unexpected register value: x20=%d", val)
 	}
 	val = cor.reg.Probe(21)
-	if val!= 4{
+	if val != 4 {
 		t.Errorf("unexpected register value: x21=%d", val)
 	}
 	val = cor.reg.Probe(22)
-	if val!= 12{
+	if val != 12 {
 		t.Errorf("unexpected register value: x22=%d", val)
 	}
 
 	val = cor.reg.Probe(24)
-	if val!= 6{
+	if val != 6 {
 		t.Errorf("unexpected register value: x24=%d", val)
 	}
 	val = cor.reg.Probe(25)
-	if val!= 16{
+	if val != 16 {
 		t.Errorf("unexpected register value: x25=%d", val)
 	}
 	val = cor.reg.Probe(26)
-	if val!= 8{
+	if val != 8 {
 		t.Errorf("unexpected register value: x26=%d", val)
 	}
 }
 
 func BenchmarkCore_Run(b *testing.B) {
-	for i := 0; i < b.N; i++{
+	for i := 0; i < b.N; i++ {
 		stream, err := coretest.StreamFromFile("../testing/programs/rtypes_rv32/add.bin")
-		if err != nil{
+		if err != nil {
 			b.Fatal(err)
 		}
 		cor := New()
@@ -122,35 +122,35 @@ func BenchmarkCore_Run(b *testing.B) {
 		// stall to wait for all instructions before assessment
 		<-time.After(time.Millisecond)
 		val := cor.reg.Probe(20)
-		if val!= 2{
+		if val != 2 {
 			b.Errorf("unexpected register value: x20=%d", val)
 		}
 		val = cor.reg.Probe(21)
-		if val!= 4{
+		if val != 4 {
 			b.Errorf("unexpected register value: x21=%d", val)
 		}
 		val = cor.reg.Probe(22)
-		if val!= 12{
+		if val != 12 {
 			b.Errorf("unexpected register value: x22=%d", val)
 		}
 
 		val = cor.reg.Probe(24)
-		if val!= 6{
+		if val != 6 {
 			b.Errorf("unexpected register value: x24=%d", val)
 		}
 		val = cor.reg.Probe(25)
-		if val!= 16{
+		if val != 16 {
 			b.Errorf("unexpected register value: x25=%d", val)
 		}
 		val = cor.reg.Probe(26)
-		if val!= 8{
+		if val != 8 {
 			b.Errorf("unexpected register value: x26=%d", val)
 		}
 	}
 }
 
-func instToStream(word datapath.XWord)[]byte {
-	inst := make([]byte,4)
+func instToStream(word datapath.XWord) []byte {
+	inst := make([]byte, 4)
 	binary.LittleEndian.PutUint32(inst, word)
 	return inst
 }

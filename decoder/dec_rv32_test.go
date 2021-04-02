@@ -48,15 +48,20 @@ func TestDecoder_Run(t *testing.T) {
 				if fields.Funct3 != 0 && fields.Funct7 != 0 {
 					t.Errorf("unexpected functs value %d, %d", fields.Funct3, fields.Funct7)
 				}
+				if fields.PC != 0 {
+					t.Errorf("unexpected pc %d", fields.PC)
+				}
 
 				// RI
 				fields = datapath.DecodeOpFields(<-dec.GetPin(Labels.OutFields))
 				if fields.Opcode != isa.Opcodes.RI {
 					t.Errorf("unexpected field value %v", fields.Opcode)
 				}
-
 				if fields.Imm != 0b010001000010 {
 					t.Errorf("unexpected imm value %d", fields.Imm)
+				}
+				if fields.PC != 4 {
+					t.Errorf("unexpected pc %d", fields.PC)
 				}
 
 				// Load
@@ -70,6 +75,9 @@ func TestDecoder_Run(t *testing.T) {
 				if fields.Funct3 != 0b101 {
 					t.Errorf("unexpected Op value %d", fields.Funct3)
 				}
+				if fields.PC != 8 {
+					t.Errorf("unexpected pc %d", fields.PC)
+				}
 
 				// Store
 				fields = datapath.DecodeOpFields(<-dec.GetPin(Labels.OutFields))
@@ -78,6 +86,9 @@ func TestDecoder_Run(t *testing.T) {
 				}
 				if fields.Imm != 0b001010000101 {
 					t.Errorf("unexpected imm value %d", fields.Imm)
+				}
+				if fields.PC != 12 {
+					t.Errorf("unexpected pc %d", fields.PC)
 				}
 			},
 		},

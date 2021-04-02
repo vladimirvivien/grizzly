@@ -10,7 +10,7 @@ import (
 	"github.com/vladimirvivien/grizzly/isa/integer"
 )
 
-var(
+var (
 	Labels = struct {
 		InFields  datapath.Pin
 		InAluData datapath.Pin
@@ -28,26 +28,25 @@ type writeSignal = struct{}
 type regfile = []datapath.XWord
 type RegisterFile struct {
 	*datapath.BaseComponent
-	m         sync.RWMutex
-	file      regfile
-	writeSig  chan writeSignal
-	output    chan []byte
+	m        sync.RWMutex
+	file     regfile
+	writeSig chan writeSignal
+	output   chan []byte
 }
 
 func New() *RegisterFile {
 	reg := &RegisterFile{
 		BaseComponent: datapath.NewBase(),
-		writeSig: make(chan writeSignal),
-		file:     make(regfile, datapath.RegSize, datapath.RegSize),
-		output:   make(chan []byte),
+		writeSig:      make(chan writeSignal),
+		file:          make(regfile, datapath.RegSize, datapath.RegSize),
+		output:        make(chan []byte),
 	}
 	reg.Connect(Labels.OutAluOps, reg.output)
 	return reg
 }
 
-
 // Run starts the register file component
-func (r RegisterFile) Run() error {
+func (r *RegisterFile) Run() error {
 	input := r.GetPin(Labels.InFields)
 	if input == nil {
 		return fmt.Errorf("register file: missing input: %s", Labels.InFields)
@@ -102,7 +101,7 @@ func (r RegisterFile) Run() error {
 				op.AluOperand1 = r.read(fields.Rs1)
 				op.AluOperand2 = fields.Imm
 				r.output <- datapath.EncodeOp(op)
-				<- r.writeSig
+				<-r.writeSig
 
 			case isa.Opcodes.S:
 				op.AluOp = alu.Ops.Add

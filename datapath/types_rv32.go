@@ -31,6 +31,50 @@ const (
 type XWord = uint32
 type SXWord = int32
 
+// ProgramCounter represents the resolved PC value that can be
+// used as address the next program address to load.
+type ProgramCounter = XWord
+
+func DecodePC(stream []byte) ProgramCounter {
+	return binary.LittleEndian.Uint32(stream)
+}
+
+func EncodePC(pc ProgramCounter) []byte {
+	buf := make([]byte, XWordBytes, XWordBytes)
+	binary.LittleEndian.PutUint32(buf, pc)
+	return buf
+}
+
+// PcOp represents an operation that can set the value of the
+// next selected program counter value if Jump > 0. The bytestream
+// for PcOp is shown below:
+//
+// 0       1       2       3       4       5
+// 01234567012345670123456701234567012345670
+// +-------+-------+-------+-------+-------+
+// |  Jump |              Ins              |
+// +-------+-------+-------+-------+-------+
+//
+type PcOp struct {
+	Jump uint8
+	PC XWord
+}
+
+func DecodePcOp(stream []byte) PcOp {
+	return PcOp{
+		Jump:   stream[0],
+		PC: binary.LittleEndian.Uint32(stream[1:]),
+	}
+}
+
+func EncodePcOp(op PcOp) []byte {
+	buf := make([]byte, 5, 5)
+	buf[0] = op.Jump
+	binary.LittleEndian.PutUint32(buf[1:], op.PC)
+	return buf
+}
+
+
 // Instruction represents the instruction value at the
 // specified PC from the instruction memory. The bytestream
 // for Instruction is shown below:
@@ -65,15 +109,16 @@ func EncodeInstruction(ins Instruction) []byte {
 // OpFields represent the operation and data fields decoded from the instruction.
 // The bytestream from the decoder will have the following layout:
 //
-// 0       1       2       3       4       5       6
-// 01234567012345670123456701234567012345670123456701234567
-// +-------+-------+-------+-------+-------+-------+------+
-// |OpCode |   Rd  |Op |   Rs1 |  Rs2  |Funct7 |Shift |
-// +-------+-------+-------+-------+-------+-------+------+
-// |               Imm             |
-// +-------------------------------+
+// 0       1       2       3       4       5       6       7
+// 01234567012345670123456701234567012345670123456701234567012345670
+// +-------+-------+-------+-------+-------+-------+-------+-------+
+// |               PC              |OpCode |   Rd  |Funct3 |   Rs1 |
+// +-------+-------+-------+-------+-------+-------+-------+-------+
+// |  Rs2  |Funct7 |Shift  |              Imm              |
+// +-----------------------+-------------------------------+
 //
 type OpFields struct {
+	PC     XWord
 	Opcode uint8
 	Rd     uint8
 	Funct3 uint8
@@ -86,27 +131,29 @@ type OpFields struct {
 
 func DecodeOpFields(stream []byte) OpFields {
 	return OpFields{
-		Opcode: stream[0],
-		Rd:     stream[1],
-		Funct3: stream[2],
-		Rs1:    stream[3],
-		Rs2:    stream[4],
-		Funct7: stream[5],
-		Shift:  stream[6],
-		Imm:    binary.LittleEndian.Uint32(stream[7:]),
+		PC:     binary.LittleEndian.Uint32(stream[0:]),
+		Opcode: stream[4],
+		Rd:     stream[5],
+		Funct3: stream[6],
+		Rs1:    stream[7],
+		Rs2:    stream[8],
+		Funct7: stream[9],
+		Shift:  stream[10],
+		Imm:    binary.LittleEndian.Uint32(stream[11:]),
 	}
 }
 
 func EncodeOpFields(f OpFields) []byte {
-	buf := make([]byte, 11, 11)
-	buf[0] = f.Opcode
-	buf[1] = f.Rd
-	buf[2] = f.Funct3
-	buf[3] = f.Rs1
-	buf[4] = f.Rs2
-	buf[5] = f.Funct7
-	buf[6] = f.Shift
-	binary.LittleEndian.PutUint32(buf[7:], f.Imm)
+	buf := make([]byte, 15, 15)
+	binary.LittleEndian.PutUint32(buf[0:], f.PC)
+	buf[4] = f.Opcode
+	buf[5] = f.Rd
+	buf[6] = f.Funct3
+	buf[7] = f.Rs1
+	buf[8] = f.Rs2
+	buf[9] = f.Funct7
+	buf[10] = f.Shift
+	binary.LittleEndian.PutUint32(buf[11:], f.Imm)
 	return buf
 }
 

@@ -64,6 +64,7 @@ func (d *Decoder) Run() error {
 				fields = store.Decode(inst.Inst)
 			}
 
+			fields.PC = inst.PC
 			d.out <- datapath.EncodeOpFields(fields)
 		}
 
