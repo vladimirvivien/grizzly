@@ -2,6 +2,7 @@ package pc
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/vladimirvivien/grizzly/clock"
@@ -46,7 +47,16 @@ func (pc *PC) Run() error {
 		return fmt.Errorf("pc: missing input: %s", Labels.InPcOp)
 	}
 
+	// Input Loop
+	// Reads the PC operation (either PC+4 or Jump/Branch instruction)
+	// If Jump > 0, set PC to jump to a specified location otherwise
+	// set PC to the next natural increment. The resolved PC is placed
+	// on a transfer channel for output.
 	go func() {
+		pc.counter = 0
+		pc.transfer <- pc.counter // trigger counter
+		log.Printf("pc: %d", pc.counter)
+
 		for stream := range opCh {
 			op := datapath.DecodePcOp(stream)
 			if op.Jump > 0 {
@@ -55,11 +65,12 @@ func (pc *PC) Run() error {
 				pc.counter = pc.counter + 4
 			}
 			pc.transfer <- pc.counter
+			log.Printf("pc: %d", pc.counter)
 		}
 	}()
 
-	// output loop
-	// generates pc
+	// Output loop
+	// Sends out the calculated PC from transfer line
 	go func() {
 		defer close(pc.out)
 		for range pc.clock.Ticks() {

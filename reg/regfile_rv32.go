@@ -119,7 +119,7 @@ func (r *RegisterFile) Run() error {
 	// proceed after a previous write.
 	go func() {
 		for dataStream := range inAluData {
-			data := datapath.DecodeRegStore(dataStream)
+			data := datapath.DecodeRegData(dataStream)
 			r.write(data.Rd, data.Value)
 			r.writeSig <- writeSignal{}
 		}
@@ -131,7 +131,7 @@ func (r *RegisterFile) Run() error {
 	// proceed after a previous write.
 	go func() {
 		for dataStream := range inMemData {
-			data := datapath.DecodeRegStore(dataStream)
+			data := datapath.DecodeRegData(dataStream)
 			r.write(data.Rd, data.Value)
 			r.writeSig <- writeSignal{}
 		}

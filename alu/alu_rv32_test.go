@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vladimirvivien/grizzly/datapath"
+	"github.com/vladimirvivien/grizzly/isa"
 )
 
 func TestALUOperations_ToRegister(t *testing.T) {
@@ -123,16 +124,18 @@ func TestALUOperations_ToRegister(t *testing.T) {
 
 			waiter := make(chan struct{})
 			regDataCh := alu.GetPin(Labels.OutRegData)
+			pcOpCh := alu.GetPin(Labels.OutPcOp)
 			go func() {
 				defer close(waiter)
 				for output := range regDataCh {
-					regData := datapath.DecodeRegStore(output)
+					regData := datapath.DecodeRegData(output)
 					if regData.Value != test.regStor.Value {
 						t.Errorf("unexpected regData value: %d", regData.Value)
 					}
 					if regData.Rd != test.regStor.Rd {
 						t.Errorf("unexpected ALU regStor RD: %d", regData.Rd)
 					}
+					<-pcOpCh // drain
 				}
 			}()
 
@@ -145,16 +148,17 @@ func TestALUOperations_ToRegister(t *testing.T) {
 	}
 }
 
-func TestALU_Run_ToRegister(t *testing.T) {
+func TestALU_Run_ToMem(t *testing.T) {
 	opsCh := make(chan []byte)
 	alu := New()
 	alu.Connect(Labels.InOperations, opsCh)
+	pcCh := alu.GetPin(Labels.OutPcOp)
 
 	// load params
 	go func() {
-		opsCh <- datapath.EncodeOp(datapath.Operation{Opcode: 0b0110011, Rd: 0b00101, AluOp: Ops.Add, AluOperand1: 7, AluOperand2: 12})
-		opsCh <- datapath.EncodeOp(datapath.Operation{Opcode: 0b0110011, Rd: 0b00101, AluOp: Ops.Sll, AluOperand1: 2, AluOperand2: 2})
-		opsCh <- datapath.EncodeOp(datapath.Operation{Opcode: 0b0110011, Rd: 0b00101, AluOp: Ops.Xor, AluOperand1: 0xFF, AluOperand2: 0b00101})
+		opsCh <- datapath.EncodeOp(datapath.Operation{Opcode: isa.Opcodes.L, Rd: 0b00101, AluOp: Ops.Add, AluOperand1: 7, AluOperand2: 12})
+		opsCh <- datapath.EncodeOp(datapath.Operation{Opcode: isa.Opcodes.S, Rd: 0b00101, AluOp: Ops.Add, AluOperand1: 2, AluOperand2: 2, MemData: 12345})
+		opsCh <- datapath.EncodeOp(datapath.Operation{Opcode: isa.Opcodes.L, Rd: 0b00101, AluOp: Ops.Add, AluOperand1: 0xFF, AluOperand2: 0b00101})
 		close(opsCh)
 	}()
 
@@ -162,23 +166,31 @@ func TestALU_Run_ToRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// add
-	output := <-alu.GetPin(Labels.OutRegData)
-	result := datapath.DecodeRegStore(output)
-	if result.Value != 19 {
-		t.Errorf("unexpected value %d", result.Value)
+	// load
+	output := <-alu.GetPin(Labels.OutMemOp)
+	result := datapath.DecodeMemOp(output)
+	if result.Addr != 19 {
+		t.Errorf("unexpected value %d", result.Addr)
 	}
+	<-pcCh // drain pc op
 
-	// sll
-	output = <-alu.GetPin(Labels.OutRegData)
-	result = datapath.DecodeRegStore(output)
-	if result.Value != 8 {
-		t.Errorf("unexpected value %d", result.Value)
-	}
 
-	output = <-alu.GetPin(Labels.OutRegData)
-	result = datapath.DecodeRegStore(output)
-	if result.Value != 0xFF^5 {
-		t.Errorf("unexpected value %d", result.Value)
+	// store
+	output = <-alu.GetPin(Labels.OutMemOp)
+	result = datapath.DecodeMemOp(output)
+	if result.Addr != 4 {
+		t.Errorf("unexpected value %d", result.Addr)
 	}
+	if result.Data != 12345 {
+		t.Errorf("unexpected value %d", result.Data)
+	}
+	<-pcCh // drain pc op
+
+	// load
+	output = <-alu.GetPin(Labels.OutMemOp)
+	result = datapath.DecodeMemOp(output)
+	if result.Addr != 0xFF+5 {
+		t.Errorf("unexpected value %d", result.Addr)
+	}
+	<-pcCh // drain pc op
 }

@@ -1,4 +1,4 @@
-package mem
+package data
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"github.com/vladimirvivien/grizzly/isa"
 	"github.com/vladimirvivien/grizzly/isa/load"
 	"github.com/vladimirvivien/grizzly/isa/store"
+	"github.com/vladimirvivien/grizzly/mem"
 )
 
 var(
@@ -21,7 +22,7 @@ var(
 )
 type DataMemory struct {
 	*datapath.BaseComponent
-	*BaseMemory
+	*mem.BaseMemory
 	sync.RWMutex
 	outReg chan []byte
 }
@@ -29,8 +30,8 @@ type DataMemory struct {
 func New(size uint64) *DataMemory {
 	mem := &DataMemory{
 		BaseComponent: datapath.NewBase(),
-		BaseMemory: NewBase(size),
-		outReg: make(chan []byte),
+		BaseMemory:    mem.NewBase(size),
+		outReg:        make(chan []byte),
 	}
 	mem.Connect(Labels.OutRegData, mem.outReg)
 	return  mem

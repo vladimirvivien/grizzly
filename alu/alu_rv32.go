@@ -12,10 +12,12 @@ var (
 		InOperations datapath.Pin
 		OutRegData   datapath.Pin
 		OutMemOp     datapath.Pin
+		OutPcOp      datapath.Pin
 	}{
 		InOperations: datapath.Pin("alu.in.operations"),
 		OutRegData:   datapath.Pin("alu.out.reg_data"),
 		OutMemOp:     datapath.Pin("alu.out.mem_op"),
+		OutPcOp:      datapath.Pin("alu.out.pc_op"),
 	}
 )
 
@@ -23,6 +25,11 @@ type ALU struct {
 	*datapath.BaseComponent
 	outReg chan []byte
 	outMem chan []byte
+	outPc  chan []byte
+	// internal wires
+	xfrReg chan []byte
+	xfrMem chan []byte
+	xfrPc  chan []byte
 }
 
 func New() *ALU {
@@ -30,9 +37,14 @@ func New() *ALU {
 		BaseComponent: datapath.NewBase(),
 		outReg:        make(chan []byte),
 		outMem:        make(chan []byte),
+		outPc:         make(chan []byte),
+		xfrReg:        make(chan []byte),
+		xfrMem:        make(chan []byte),
+		xfrPc:         make(chan []byte),
 	}
 	alu.Connect(Labels.OutRegData, alu.outReg)
 	alu.Connect(Labels.OutMemOp, alu.outMem)
+	alu.Connect(Labels.OutPcOp, alu.outPc)
 	return alu
 }
 
@@ -42,9 +54,13 @@ func (a *ALU) Run() error {
 		return fmt.Errorf("alu: missing input: %s", Labels.InOperations)
 	}
 
+	// Input Loop
+	// This loop processes incoming alu operations
+	// and places result on internal channels to be sent as output.
 	go func() {
-		defer close(a.outReg)
-		defer close(a.outMem)
+		defer close(a.xfrReg)
+		defer close(a.xfrMem)
+		defer close(a.xfrPc)
 
 		for {
 			stream, opened := <-input
@@ -111,22 +127,51 @@ func (a *ALU) Run() error {
 				result = operation.AluOperand1 & operation.AluOperand2
 			}
 
-			// route alu regStor to other components
+			// route alu result routing
 			switch operation.Opcode {
 			case isa.Opcodes.R, isa.Opcodes.RI:
-				a.outReg <- datapath.EncodeRegStore(datapath.RegisterData{Rd: operation.Rd, Value: result})
+				a.xfrReg <- datapath.EncodeRegData(datapath.RegisterData{Rd: operation.Rd, Value: result})
+				a.xfrPc <- datapath.EncodePcOp(datapath.PcOp{Jump: 0, PC: 0})
 			case isa.Opcodes.L, isa.Opcodes.S:
-				a.outMem <- datapath.EncodeMemOp(datapath.MemOp{
+				a.xfrMem <- datapath.EncodeMemOp(datapath.MemOp{
 					Opcode: operation.Opcode,
 					Rd:     operation.Rd,
 					Op:     operation.MemOp,
 					Addr:   result,
 					Data:   operation.MemData,
 				})
+				a.xfrPc <- datapath.EncodePcOp(datapath.PcOp{Jump: 0, PC: 0})
 			}
+
 		}
 	}()
 
+	// Reg Op Output Loop
+	// Sends out Register operations
+	go func() {
+		defer close(a.outReg)
+		for stream := range a.xfrReg {
+			a.outReg <- stream
+		}
+	}()
+
+	// Mem Op Output Loop
+	// Sends out Memory operations
+	go func() {
+		defer close(a.outMem)
+		for stream := range a.xfrMem {
+			a.outMem <- stream
+		}
+	}()
+
+	// PC Op Output Loop
+	// Sends out program counter operations
+	go func() {
+		defer close(a.outPc)
+		for stream := range a.xfrPc {
+			a.outPc <- stream
+		}
+	}()
 	return nil
 }
 

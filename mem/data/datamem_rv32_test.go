@@ -1,4 +1,4 @@
-package mem
+package data
 
 import (
 	"testing"
@@ -10,31 +10,7 @@ import (
 	"github.com/vladimirvivien/grizzly/isa/store"
 )
 
-func TestMemory_ReadWrite(t *testing.T) {
-	size := 1024 * 100
-	mem := New(uint64(size))
 
-	// initialize mem
-	for i := 0; i < size; i += datapath.XWordBytes {
-		if i > len(mem.store)-datapath.XWordBytes {
-			break
-		}
-		value := datapath.XWord(i * 0x11223344)
-		mem.TestSideLoad(datapath.XWord(i), value)
-	}
-
-	// test mem
-	for i := 0; i < size; i += datapath.XWordBytes {
-		if i > len(mem.store)-datapath.XWordBytes {
-			break
-		}
-		expected := datapath.XWord(i * 0x11223344)
-		val := mem.TestProbe(datapath.XWord(i))
-		if val != expected {
-			t.Errorf("unexpected value mem[%d]=%d", i, val)
-		}
-	}
-}
 
 func TestMemory_Run_Read(t *testing.T) {
 	size := 1024 * 100
@@ -48,7 +24,7 @@ func TestMemory_Run_Read(t *testing.T) {
 
 	// initialize mem
 	for i := 0; i < size; i += datapath.XWordBytes {
-		if i > len(mem.store)-datapath.XWordBytes {
+		if i > mem.GetSize()-datapath.XWordBytes {
 			break
 		}
 		value := datapath.XWord(i * 0x11223344)
@@ -58,7 +34,7 @@ func TestMemory_Run_Read(t *testing.T) {
 	// send load memory operation
 	go func() {
 		for i := 0; i < size; i += datapath.XWordBytes {
-			if i > len(mem.store)-datapath.XWordBytes {
+			if i > mem.GetSize()-datapath.XWordBytes {
 				break
 			}
 			opCh <- datapath.EncodeMemOp(datapath.MemOp{
@@ -113,7 +89,7 @@ func TestMemory_Run_Write(t *testing.T) {
 	// store
 	go func() {
 		for i := 0; i < size; i += datapath.XWordBytes {
-			if i > len(mem.store)-datapath.XWordBytes {
+			if i > mem.GetSize()-datapath.XWordBytes {
 				break
 			}
 			opCh <- datapath.EncodeMemOp(datapath.MemOp{
@@ -135,7 +111,7 @@ func TestMemory_Run_Write(t *testing.T) {
 
 	// test mem
 	for i := 0; i < size; i += datapath.XWordBytes {
-		if i > len(mem.store)-datapath.XWordBytes {
+		if i > mem.GetSize()-datapath.XWordBytes {
 			break
 		}
 		expected := datapath.XWord(i * 0x11223344)

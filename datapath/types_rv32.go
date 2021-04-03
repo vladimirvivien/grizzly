@@ -31,6 +31,16 @@ const (
 type XWord = uint32
 type SXWord = int32
 
+func DecodeXWord(stream []byte) XWord {
+	return binary.LittleEndian.Uint32(stream)
+}
+
+func EncodeXWord(w XWord) []byte {
+	buf := make([]byte, XWordBytes, XWordBytes)
+	binary.LittleEndian.PutUint32(buf, w)
+	return buf
+}
+
 // ProgramCounter represents the resolved PC value that can be
 // used as address the next program address to load.
 type ProgramCounter = XWord
@@ -52,18 +62,18 @@ func EncodePC(pc ProgramCounter) []byte {
 // 0       1       2       3       4       5
 // 01234567012345670123456701234567012345670
 // +-------+-------+-------+-------+-------+
-// |  Jump |              Ins              |
+// |  Jump |               PC              |
 // +-------+-------+-------+-------+-------+
 //
 type PcOp struct {
 	Jump uint8
-	PC XWord
+	PC   XWord
 }
 
 func DecodePcOp(stream []byte) PcOp {
 	return PcOp{
-		Jump:   stream[0],
-		PC: binary.LittleEndian.Uint32(stream[1:]),
+		Jump: stream[0],
+		PC:   binary.LittleEndian.Uint32(stream[1:]),
 	}
 }
 
@@ -73,7 +83,6 @@ func EncodePcOp(op PcOp) []byte {
 	binary.LittleEndian.PutUint32(buf[1:], op.PC)
 	return buf
 }
-
 
 // Instruction represents the instruction value at the
 // specified PC from the instruction memory. The bytestream
@@ -162,16 +171,18 @@ func EncodeOpFields(f OpFields) []byte {
 //
 // 0       1       2       3       4       5       6       7
 // 0123456701234567012345670123456701234567012345670123456701234567
-// +-------+-------+-------+-------+-------+-------+------+-------+
-// |OpCode |   Rd  | AluOp |           AluOperand1        |
-// +-------+-------+-------+-------+-------+-------+------+-------+
-//        AluOperand2      | MemOp |              MemData         |
-// +-------+-----------------------+------------------------------+
-//
+// +-------+-------+-------+-------+-------+-------+-------+-------+
+// |               PC              |OpCode |   Rd  | AluOp |
+// +-------+-------+-------+-------+-------+-------+-------+-------+
+//        AluOperand1      |            AluOperand2        | MemOp |
+// +-------+-------+-------+-------+-------------------------------+
+// |              MemData          |
+// +-------+-------+-------+-------+
 //
 type Operation struct {
 	// inst fields
-	Opcode,
+	PC     XWord
+	Opcode uint8
 
 	// register store
 	Rd uint8
@@ -188,25 +199,27 @@ type Operation struct {
 
 func DecodeOp(s []byte) Operation {
 	return Operation{
-		Opcode:      s[0],
-		Rd:          s[1],
-		AluOp:       s[2],
-		AluOperand1: binary.LittleEndian.Uint32(s[3:]),
-		AluOperand2: binary.LittleEndian.Uint32(s[7:]),
-		MemOp:       s[11],
-		MemData:     binary.LittleEndian.Uint32(s[12:]),
+		PC:          binary.LittleEndian.Uint32(s[0:]),
+		Opcode:      s[4],
+		Rd:          s[5],
+		AluOp:       s[6],
+		AluOperand1: binary.LittleEndian.Uint32(s[7:]),
+		AluOperand2: binary.LittleEndian.Uint32(s[11:]),
+		MemOp:       s[15],
+		MemData:     binary.LittleEndian.Uint32(s[16:]),
 	}
 }
 
 func EncodeOp(a Operation) []byte {
-	buf := make([]byte, 16, 16)
-	buf[0] = a.Opcode
-	buf[1] = a.Rd
-	buf[2] = a.AluOp
-	binary.LittleEndian.PutUint32(buf[3:], a.AluOperand1)
-	binary.LittleEndian.PutUint32(buf[7:], a.AluOperand2)
-	buf[11] = a.MemOp
-	binary.LittleEndian.PutUint32(buf[12:], a.MemData)
+	buf := make([]byte, 20, 20)
+	binary.LittleEndian.PutUint32(buf[0:], a.PC)
+	buf[4] = a.Opcode
+	buf[5] = a.Rd
+	buf[6] = a.AluOp
+	binary.LittleEndian.PutUint32(buf[7:], a.AluOperand1)
+	binary.LittleEndian.PutUint32(buf[11:], a.AluOperand2)
+	buf[15] = a.MemOp
+	binary.LittleEndian.PutUint32(buf[16:], a.MemData)
 	return buf
 }
 
@@ -224,14 +237,14 @@ type RegisterData struct {
 	Value XWord
 }
 
-func DecodeRegStore(s []byte) RegisterData {
+func DecodeRegData(s []byte) RegisterData {
 	return RegisterData{
 		Rd:    s[0],
 		Value: binary.LittleEndian.Uint32(s[1:]),
 	}
 }
 
-func EncodeRegStore(r RegisterData) []byte {
+func EncodeRegData(r RegisterData) []byte {
 	buf := make([]byte, 5, 5)
 	buf[0] = r.Rd
 	binary.LittleEndian.PutUint32(buf[1:], r.Value)

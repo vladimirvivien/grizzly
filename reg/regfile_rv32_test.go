@@ -221,11 +221,11 @@ func TestRegisterFile_Run_AluDataInput(t *testing.T) {
 		{
 			name: "values",
 			data: map[uint8][]byte{
-				0:  datapath.EncodeRegStore(datapath.RegisterData{Rd: 0, Value: 0}),
-				4:  datapath.EncodeRegStore(datapath.RegisterData{Rd: 4, Value: math.MaxUint32}),
-				8:  datapath.EncodeRegStore(datapath.RegisterData{Rd: 8, Value: math.MaxInt8}),
-				16: datapath.EncodeRegStore(datapath.RegisterData{Rd: 16, Value: math.MaxInt16}),
-				31: datapath.EncodeRegStore(datapath.RegisterData{Rd: 31, Value: math.MaxInt32}),
+				0:  datapath.EncodeRegData(datapath.RegisterData{Rd: 0, Value: 0}),
+				4:  datapath.EncodeRegData(datapath.RegisterData{Rd: 4, Value: math.MaxUint32}),
+				8:  datapath.EncodeRegData(datapath.RegisterData{Rd: 8, Value: math.MaxInt8}),
+				16: datapath.EncodeRegData(datapath.RegisterData{Rd: 16, Value: math.MaxInt16}),
+				31: datapath.EncodeRegData(datapath.RegisterData{Rd: 31, Value: math.MaxInt32}),
 			},
 		},
 	}
@@ -259,7 +259,7 @@ func TestRegisterFile_Run_AluDataInput(t *testing.T) {
 
 		// assess
 		for addr, stream := range test.data {
-			data := datapath.DecodeRegStore(stream)
+			data := datapath.DecodeRegData(stream)
 			actual := reg.Probe(addr)
 			if actual != data.Value {
 				t.Errorf("expecting RegisterData.Vallue %d, got %d", data.Value, actual)
@@ -278,11 +278,11 @@ func TestRegisterFile_Run_MemDataInput(t *testing.T) {
 		{
 			name: "values",
 			data: map[uint8][]byte{
-				0:  datapath.EncodeRegStore(datapath.RegisterData{Rd: 0, Value: 0}),
-				4:  datapath.EncodeRegStore(datapath.RegisterData{Rd: 4, Value: math.MaxUint32}),
-				8:  datapath.EncodeRegStore(datapath.RegisterData{Rd: 8, Value: math.MaxInt8}),
-				16: datapath.EncodeRegStore(datapath.RegisterData{Rd: 16, Value: math.MaxInt16}),
-				31: datapath.EncodeRegStore(datapath.RegisterData{Rd: 31, Value: math.MaxInt32}),
+				0:  datapath.EncodeRegData(datapath.RegisterData{Rd: 0, Value: 0}),
+				4:  datapath.EncodeRegData(datapath.RegisterData{Rd: 4, Value: math.MaxUint32}),
+				8:  datapath.EncodeRegData(datapath.RegisterData{Rd: 8, Value: math.MaxInt8}),
+				16: datapath.EncodeRegData(datapath.RegisterData{Rd: 16, Value: math.MaxInt16}),
+				31: datapath.EncodeRegData(datapath.RegisterData{Rd: 31, Value: math.MaxInt32}),
 			},
 		},
 	}
@@ -316,7 +316,7 @@ func TestRegisterFile_Run_MemDataInput(t *testing.T) {
 
 		// assess
 		for addr, stream := range test.data {
-			data := datapath.DecodeRegStore(stream)
+			data := datapath.DecodeRegData(stream)
 			actual := reg.Probe(addr)
 			if actual != data.Value {
 				t.Errorf("expecting RegisterData.Vallue %d, got %d", data.Value, actual)
