@@ -81,7 +81,7 @@ func TestMemory_Run_Read(t *testing.T) {
 			if !opened {
 				return
 			}
-			rs := datapath.DecodeRegStore(stream)
+			rs := datapath.DecodeRegData(stream)
 			if rs.Rd != 5 {
 				t.Errorf("unexpected regStore.Rd: %d", rs.Rd)
 			}
@@ -95,7 +95,7 @@ func TestMemory_Run_Read(t *testing.T) {
 	select {
 	case <-waiter:
 	case <-time.After(50 * time.Millisecond):
-		t.Fatal("Memory operations took too long to complete")
+		t.Fatal("DataMemory operations took too long to complete")
 	}
 }
 
@@ -130,7 +130,7 @@ func TestMemory_Run_Write(t *testing.T) {
 	select {
 	case <-waiter:
 	case <-time.After(50 * time.Millisecond):
-		t.Fatal("Memory operations took too long to complete")
+		t.Fatal("DataMemory operations took too long to complete")
 	}
 
 	// test mem
