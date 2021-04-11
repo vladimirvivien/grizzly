@@ -6,6 +6,7 @@ import (
 	"github.com/vladimirvivien/grizzly/datapath"
 	"github.com/vladimirvivien/grizzly/isa"
 	"github.com/vladimirvivien/grizzly/isa/integer"
+	"github.com/vladimirvivien/grizzly/isa/jump"
 	"github.com/vladimirvivien/grizzly/isa/load"
 	"github.com/vladimirvivien/grizzly/isa/store"
 )
@@ -62,6 +63,8 @@ func (d *Decoder) Run() error {
 				fields = load.Decode(inst.Inst)
 			case isa.Opcodes.S:
 				fields = store.Decode(inst.Inst)
+			case isa.Opcodes.J, isa.Opcodes.JI:
+				fields = jump.Decode(inst.Inst)
 			}
 
 			fields.PC = inst.PC

@@ -141,8 +141,17 @@ func (a *ALU) Run() error {
 					Data:   operation.MemData,
 				})
 				a.xfrPc <- datapath.EncodePcOp(datapath.PcOp{Jump: 0, PC: 0})
+			case isa.Opcodes.J:
+				// store RD <- PC+4
+				a.xfrReg <- datapath.EncodeRegData(datapath.RegisterData{Rd: operation.Rd, Value: operation.PC+4})
+				// set next PC = op1+op2
+				a.xfrPc <- datapath.EncodePcOp(datapath.PcOp{Jump: 1, PC: result})
+			case isa.Opcodes.JI:
+				// store RD <- PC+4
+				a.xfrReg <- datapath.EncodeRegData(datapath.RegisterData{Rd: operation.Rd, Value: operation.PC+4})
+				// next PC = (op1+op2) & 0xffff_fffe
+				a.xfrPc <- datapath.EncodePcOp(datapath.PcOp{Jump: 1, PC: result & 0xffff_fffe})
 			}
-
 		}
 	}()
 

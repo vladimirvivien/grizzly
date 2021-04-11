@@ -109,7 +109,24 @@ func (r *RegisterFile) Run() error {
 				op.AluOperand2 = fields.Imm
 				op.MemData = r.read(fields.Rs2)
 				r.output <- datapath.EncodeOp(op)
+
+			case isa.Opcodes.J:
+				op.AluOp = alu.Ops.Add
+				op.PC = fields.PC
+				op.AluOperand1 = fields.PC
+				op.AluOperand2 = fields.Imm
+				r.output <- datapath.EncodeOp(op)
+				<-r.writeSig
+
+			case isa.Opcodes.JI:
+				op.AluOp = alu.Ops.Add
+				op.PC = fields.PC
+				op.AluOperand1 =  r.read(fields.Rs1)
+				op.AluOperand2 = fields.Imm
+				r.output <- datapath.EncodeOp(op)
+				<-r.writeSig
 			}
+
 		}
 	}()
 

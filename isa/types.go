@@ -11,7 +11,9 @@ var (
 		S,
 		SB,
 		U,
-		UJ Opcode
+		UJ,
+		J,
+		JI Opcode
 	}{
 		R:     0b0110011,
 		RI:    0b0010011,
@@ -21,11 +23,13 @@ var (
 		SB:    0x63,
 		U:     0x37,
 		UJ:    0x6F,
+		J:     0b1101111,
+		JI:    0b1100111,
 	}
 )
 
 type Op struct {
-	Name string
+	Name   string
 	Functs uint16
 	F3, F7 uint8
 	Opcode uint8
