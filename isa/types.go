@@ -13,7 +13,8 @@ var (
 		U,
 		UJ,
 		J,
-		JI Opcode
+		JI,
+		B Opcode
 	}{
 		R:     0b0110011,
 		RI:    0b0010011,
@@ -25,6 +26,7 @@ var (
 		UJ:    0x6F,
 		J:     0b1101111,
 		JI:    0b1100111,
+		B:     0b1100011,
 	}
 )
 

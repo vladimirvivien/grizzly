@@ -28,6 +28,11 @@ var (
 		Divu uint8
 		Rem  uint8
 		Remu uint8
+
+		// comparator
+		Eq uint8
+		Ne uint8
+
 	}{
 		Add:  0b00000000,
 		And:  0b00000001,
