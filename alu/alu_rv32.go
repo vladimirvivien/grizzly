@@ -69,63 +69,7 @@ func (a *ALU) Run() error {
 			}
 
 			operation := datapath.DecodeOp(stream)
-
-			var result datapath.XWord
-			switch operation.AluOp {
-			case
-				// addition: add, addi
-				Ops.Add:
-				result = operation.AluOperand1 + operation.AluOperand2
-
-			case
-				// subtraction: sub
-				Ops.Sub:
-				result = operation.AluOperand1 - operation.AluOperand2
-
-			case
-				// shift logical left: sll, slli
-				Ops.Sll:
-				result = operation.AluOperand1 << operation.AluOperand2
-
-			case
-				// set if less then (signed): slt, slti
-				Ops.Slt:
-				if datapath.SXWord(operation.AluOperand1) < datapath.SXWord(operation.AluOperand2) {
-					result = 1
-				}
-
-			case
-				// set if less then (unsigned): sltu, sltiu
-				Ops.Sltu:
-				if operation.AluOperand1 < operation.AluOperand2 {
-					result = 1
-				}
-
-			case
-				// xor, xori
-				Ops.Xor:
-				result = operation.AluOperand1 ^ operation.AluOperand2
-
-			case
-				// shift right logical: srl, srli
-				Ops.Srl:
-				result = operation.AluOperand1 >> operation.AluOperand2
-
-			case
-				// shift right arithmetic: sra, srai
-				Ops.Sra:
-				result = datapath.XWord(datapath.SXWord(operation.AluOperand1) >> operation.AluOperand2)
-
-			case
-				// or, ori
-				Ops.Or:
-				result = operation.AluOperand1 | operation.AluOperand2
-
-			case
-				// and, andi
-				Ops.And:
-				result = operation.AluOperand1 & operation.AluOperand2
-			}
+			result := aluFunc(operation)
 
 			// route alu result routing
 			switch operation.Opcode {
@@ -143,14 +87,16 @@ func (a *ALU) Run() error {
 				a.xfrPc <- datapath.EncodePcOp(datapath.PcOp{Jump: 0, PC: 0})
 			case isa.Opcodes.J:
 				// store RD <- PC+4
-				a.xfrReg <- datapath.EncodeRegData(datapath.RegisterData{Rd: operation.Rd, Value: operation.PC+4})
+				a.xfrReg <- datapath.EncodeRegData(datapath.RegisterData{Rd: operation.Rd, Value: operation.PC + 4})
 				// set next PC = op1+op2
 				a.xfrPc <- datapath.EncodePcOp(datapath.PcOp{Jump: 1, PC: result})
 			case isa.Opcodes.JI:
 				// store RD <- PC+4
-				a.xfrReg <- datapath.EncodeRegData(datapath.RegisterData{Rd: operation.Rd, Value: operation.PC+4})
+				a.xfrReg <- datapath.EncodeRegData(datapath.RegisterData{Rd: operation.Rd, Value: operation.PC + 4})
 				// send next PC = (op1+op2) & 0xffff_fffe
 				a.xfrPc <- datapath.EncodePcOp(datapath.PcOp{Jump: 1, PC: result & 0xffff_fffe})
+			case isa.Opcodes.B:
+				a.xfrPc <- datapath.EncodePcOp(datapath.PcOp{Jump: 1, PC: result})
 			}
 		}
 	}()
@@ -182,6 +128,71 @@ func (a *ALU) Run() error {
 		}
 	}()
 	return nil
+}
+
+// aluFunc carries out the ALU operations
+func aluFunc(operation datapath.Operation) (result datapath.XWord) {
+	switch operation.AluOp {
+	case
+		// addition: add, addi
+		Ops.Add:
+		result = operation.AluOperand1 + operation.AluOperand2
+
+	case
+		// subtraction: sub
+		Ops.Sub:
+		result = operation.AluOperand1 - operation.AluOperand2
+
+	case
+		// shift logical left: sll, slli
+		Ops.Sll:
+		result = operation.AluOperand1 << operation.AluOperand2
+
+	case
+		// set if less then (signed): slt, slti
+		Ops.Slt:
+		if datapath.SXWord(operation.AluOperand1) < datapath.SXWord(operation.AluOperand2) {
+			result = 1
+		}
+
+	case
+		// set if less then (unsigned): sltu, sltiu
+		Ops.Sltu:
+		if operation.AluOperand1 < operation.AluOperand2 {
+			result = 1
+		}
+
+	case
+		// xor, xori
+		Ops.Xor:
+		result = operation.AluOperand1 ^ operation.AluOperand2
+
+	case
+		// shift right logical: srl, srli
+		Ops.Srl:
+		result = operation.AluOperand1 >> operation.AluOperand2
+
+	case
+		// shift right arithmetic: sra, srai
+		Ops.Sra:
+		result = datapath.XWord(datapath.SXWord(operation.AluOperand1) >> operation.AluOperand2)
+
+	case
+		// or, ori
+		Ops.Or:
+		result = operation.AluOperand1 | operation.AluOperand2
+
+	case
+		// and, andi
+		Ops.And:
+		result = operation.AluOperand1 & operation.AluOperand2
+
+	case Ops.Branch1:
+		// if branch, result = PC + SigExt(Imm)
+		// if not branch, result = PC+4
+		result = operation.AluOperand1 + operation.AluOperand2
+	}
+	return
 }
 
 // mulh** returns high 32-bit portion of multiplication product.

@@ -29,10 +29,9 @@ var (
 		Rem  uint8
 		Remu uint8
 
-		// comparator
-		Eq uint8
-		Ne uint8
-
+		// Branch
+		Branch0  uint8
+		Branch1 uint8
 	}{
 		Add:  0b00000000,
 		And:  0b00000001,
@@ -56,6 +55,10 @@ var (
 		Divu: 0b00001111,
 		Rem:  0b00010000,
 		Remu: 0b00010001,
+
+		// comp
+		Branch0:  0b01000000,
+		Branch1:  0b01000001,
 	}
 )
 
@@ -103,6 +106,6 @@ func EncodeAluOp(f7, f3 uint8) uint8 {
 		return Ops.And
 
 	default:
-		return 0
+		panic("unknown instruction functs")
 	}
 }

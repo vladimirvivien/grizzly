@@ -223,6 +223,53 @@ func EncodeOp(a Operation) []byte {
 	return buf
 }
 
+// BranchOp carries control/data for branch operation to be carried
+// out by the Brancher.
+// The bytestrem to the ALU is encoded with the following layout:
+//
+// 0       1       2       3       4       5       6       7
+// 0123456701234567012345670123456701234567012345670123456701234567
+// +-------+-------+-------+-------+-------+-------+-------+-------+
+// |               PC              |OpCode |Funct3 |          RS1D
+// +-------+-------+-------+-------+-------+-------+-------+-------+
+//                 |              RS2D             |          Imm
+// +-------+-------+-------+-------+-------+-------+-------+-------+
+//                 |
+// +-------+-------+
+//
+type BranchOp struct {
+	PC     XWord
+	Opcode uint8
+	Funct3 uint8
+
+	// Register Data
+	RS1D XWord
+	RS2D XWord
+	Imm  uint32
+}
+
+func DecodeBranchOp(s []byte) BranchOp {
+	return BranchOp{
+		PC:     binary.LittleEndian.Uint32(s[0:]),
+		Opcode: s[4],
+		Funct3: s[5],
+		RS1D:   binary.LittleEndian.Uint32(s[6:]),
+		RS2D:   binary.LittleEndian.Uint32(s[10:]),
+		Imm:    binary.LittleEndian.Uint32(s[14:]),
+	}
+}
+
+func EncodeBranchOp(a BranchOp) []byte {
+	buf := make([]byte, 18, 18)
+	binary.LittleEndian.PutUint32(buf[0:], a.PC)
+	buf[4] = a.Opcode
+	buf[5] = a.Funct3
+	binary.LittleEndian.PutUint32(buf[6:], a.RS1D)
+	binary.LittleEndian.PutUint32(buf[10:], a.RS2D)
+	binary.LittleEndian.PutUint32(buf[14:], a.Imm)
+	return buf
+}
+
 // RegisterData represents data to be stored in the register at the end of an operation.
 // The bytestrem for register data is encoded with the following layout:
 //

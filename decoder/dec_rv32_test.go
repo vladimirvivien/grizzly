@@ -34,6 +34,10 @@ func TestDecoder_Run(t *testing.T) {
 					inst = datapath.EncodeInstruction(datapath.Instruction{PC: 12, Inst: 0b0010100_11011_01001_010_00101_0100011})
 					stream <- inst
 
+					// Branch
+					inst = datapath.EncodeInstruction(datapath.Instruction{PC: 16, Inst: 0b0_000100_10011_00001_000_1010_1_1100011})
+					stream <- inst
+
 					close(stream)
 				}()
 				return stream
@@ -88,6 +92,18 @@ func TestDecoder_Run(t *testing.T) {
 					t.Errorf("unexpected imm value %d", fields.Imm)
 				}
 				if fields.PC != 12 {
+					t.Errorf("unexpected pc %d", fields.PC)
+				}
+
+				// Branch
+				fields = datapath.DecodeOpFields(<-dec.GetPin(Labels.OutFields))
+				if fields.Opcode != isa.Opcodes.B {
+					t.Errorf("unexpected field value %v", fields.Opcode)
+				}
+				if fields.Imm != 0b0_1_000100_1010 {
+					t.Errorf("unexpected imm value %d", fields.Imm)
+				}
+				if fields.PC != 16 {
 					t.Errorf("unexpected pc %d", fields.PC)
 				}
 			},

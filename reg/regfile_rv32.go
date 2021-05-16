@@ -125,8 +125,14 @@ func (r *RegisterFile) Run() error {
 				op.AluOperand2 = fields.Imm
 				r.output <- datapath.EncodeOp(op)
 				<-r.writeSig
-			}
 
+			case isa.Opcodes.B:
+				op.AluOp = alu.EncodeCompOp(fields.Funct3)
+				op.PC = fields.PC
+				op.AluOperand1 = r.read(fields.Rs1)
+				op.AluOperand2 = r.read(fields.Rs2)
+				r.output <- datapath.EncodeOp(op)
+			}
 		}
 	}()
 
