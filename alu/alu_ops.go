@@ -105,6 +105,30 @@ func EncodeAluOp(f7, f3 uint8) uint8 {
 		integer.Andi.F7 == f7 && integer.Andi.F3 == f3:
 		return Ops.And
 
+	case integer.Mul.F7 == f7 && integer.Mul.F3 == f3:
+		return Ops.Mul
+
+	case integer.Mulh.F7 == f7 && integer.Mulh.F3 == f3:
+		return Ops.Mulh
+
+	case integer.Mulhsu.F7 == f7 && integer.Mulhsu.F3 == f3:
+		return Ops.Mulhsu
+
+	case integer.Mulhu.F7 == f7 && integer.Mulhu.F3 == f3:
+		return Ops.Mulhu
+
+	case integer.Div.F7 == f7 && integer.Div.F3 == f3:
+		return Ops.Div
+
+	case integer.Divu.F7 == f7 && integer.Divu.F3 == f3:
+		return Ops.Divu
+
+	case integer.Rem.F7 == f7 && integer.Rem.F3 == f3:
+		return Ops.Rem
+
+	case integer.Remu.F7 == f7 && integer.Remu.F3 == f3:
+		return Ops.Remu
+
 	default:
 		panic("unknown instruction functs")
 	}

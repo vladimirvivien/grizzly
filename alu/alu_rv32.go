@@ -187,6 +187,58 @@ func aluFunc(operation datapath.Operation) (result datapath.XWord) {
 		Ops.And:
 		result = operation.AluOperand1 & operation.AluOperand2
 
+	case Ops.Mul:
+		result = operation.AluOperand1 * operation.AluOperand2
+
+	case Ops.Mulh:
+		result = mulh(operation.AluOperand1, operation.AluOperand2)
+
+	case Ops.Mulhsu:
+		result = mulhsu(operation.AluOperand1, operation.AluOperand2)
+
+	case Ops.Mulhu:
+		result = mulhu(operation.AluOperand1, operation.AluOperand2)
+
+	case Ops.Div:
+		op1 := int32(operation.AluOperand1)
+		op2 := int32(operation.AluOperand2)
+		if op2 == 0 {
+			result = 0xffffffff
+		} else if op1 == -2147483648 && op2 == -1 {
+			result = uint32(op1)
+		} else {
+			result = uint32(op1 / op2)
+		}
+
+	case Ops.Divu:
+		op1 := operation.AluOperand1
+		op2 := operation.AluOperand2
+		if op2 == 0 {
+			result = 0xffffffff
+		} else {
+			result = op1 / op2
+		}
+
+	case Ops.Rem:
+		op1 := int32(operation.AluOperand1)
+		op2 := int32(operation.AluOperand2)
+		if op2 == 0 {
+			result = uint32(op1)
+		} else if op1 == -2147483648 && op2 == -1 {
+			result = 0
+		} else {
+			result = uint32(op1 % op2)
+		}
+
+	case Ops.Remu:
+		op1 := operation.AluOperand1
+		op2 := operation.AluOperand2
+		if op2 == 0 {
+			result = op1
+		} else {
+			result = op1 % op2
+		}
+
 	case Ops.Branch1:
 		// if branch, result = PC + SigExt(Imm)
 		// if not branch, result = PC+4

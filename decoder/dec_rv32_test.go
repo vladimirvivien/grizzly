@@ -73,7 +73,7 @@ func TestDecoder_Run(t *testing.T) {
 				if fields.Opcode != isa.Opcodes.L {
 					t.Errorf("unexpected field value %v", fields.Opcode)
 				}
-				if fields.Imm != 0b100010001011 {
+				if fields.Imm != 0xFFFFF88B {
 					t.Errorf("unexpected imm value %d", fields.Imm)
 				}
 				if fields.Funct3 != 0b101 {

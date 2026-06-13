@@ -16,6 +16,10 @@ func Decode(i datapath.XWord) datapath.OpFields {
 	fields.Rd = uint8((i >> 7) & 0x1F)
 	fields.Funct3 = uint8((i >> 12) & 0x7)
 	fields.Rs1 = uint8((i >> 15) & 0x1F)
-	fields.Imm = (i >> 20) & 0xFFF
+	val := (i >> 20) & 0xFFF
+	if (val & 0x800) != 0 {
+		val |= 0xfffff000
+	}
+	fields.Imm = val
 	return fields
 }

@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/binary"
+	"io/ioutil"
 	"testing"
 	"time"
 
@@ -148,4 +149,91 @@ func instToStream(word datapath.XWord) []byte {
 	inst := make([]byte, 4)
 	binary.LittleEndian.PutUint32(inst, word)
 	return inst
+}
+
+func TestCore_Run_Binary(t *testing.T) {
+	// Load the binary program file compiled by Zig
+	content, err := ioutil.ReadFile("../testing/programs/rtypes_rv32/build/add.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cor := New()
+	cor.imem.SetStore(content)
+
+	if err := cor.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// wait for execution
+	<-time.After(time.Millisecond)
+
+	val := cor.reg.Probe(20)
+	if val != 2 {
+		t.Errorf("unexpected register value: x20=%d", val)
+	}
+	val = cor.reg.Probe(21)
+	if val != 4 {
+		t.Errorf("unexpected register value: x21=%d", val)
+	}
+	val = cor.reg.Probe(22)
+	if val != 12 {
+		t.Errorf("unexpected register value: x22=%d", val)
+	}
+	val = cor.reg.Probe(24)
+	if val != 6 {
+		t.Errorf("unexpected register value: x24=%d", val)
+	}
+	val = cor.reg.Probe(25)
+	if val != 16 {
+		t.Errorf("unexpected register value: x25=%d", val)
+	}
+	val = cor.reg.Probe(26)
+	if val != 8 {
+		t.Errorf("unexpected register value: x26=%d", val)
+	}
+}
+
+func TestCore_Run_Branch(t *testing.T) {
+	// Load the branch test binary file compiled by Zig
+	content, err := ioutil.ReadFile("../testing/programs/branch_rv32/build/branch_test.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cor := New()
+	cor.imem.SetStore(content)
+
+	if err := cor.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// wait for execution
+	<-time.After(time.Millisecond)
+
+	// Check register values
+	val := cor.reg.Probe(1) // x1 = 5
+	if val != 5 {
+		t.Errorf("unexpected register value: x1=%d", val)
+	}
+	val = cor.reg.Probe(2) // x2 = 5
+	if val != 5 {
+		t.Errorf("unexpected register value: x2=%d", val)
+	}
+	val = cor.reg.Probe(3) // x3 = 0 (should not be executed/modified to 1 or 2)
+	if val != 0 {
+		t.Errorf("unexpected register value: x3=%d (branch was not taken correctly)", val)
+	}
+	val = cor.reg.Probe(4) // x4 = 10
+	if val != 10 {
+		t.Errorf("unexpected register value: x4=%d", val)
+	}
+	val = cor.reg.Probe(5) // x5 = 6
+	if val != 6 {
+		t.Errorf("unexpected register value: x5=%d", val)
+	}
+	val = cor.reg.Probe(6) // x6 = 15
+	if val != 15 {
+		t.Errorf("unexpected register value: x6=%d", val)
+	}
 }

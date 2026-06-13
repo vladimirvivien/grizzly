@@ -21,7 +21,7 @@ func TestDecode(t *testing.T) {
 		{
 			name:   Lbu.Name,
 			inst:   0b100000011011_01001_100_11001_0000011,
-			fields: datapath.OpFields{Imm: 0b100000011011, Rs1: 0b01001, Funct3: 0b100, Rd: 0b11001},
+			fields: datapath.OpFields{Imm: 0xFFFFF81B, Rs1: 0b01001, Funct3: 0b100, Rd: 0b11001},
 		},
 		{
 			name:   Lh.Name,
@@ -31,12 +31,12 @@ func TestDecode(t *testing.T) {
 		{
 			name:   Lhu.Name,
 			inst:   0b100010001011_01011_101_00101_0000011,
-			fields: datapath.OpFields{Imm: 0b100010001011, Rs1: 0b01011, Funct3: 0b101, Rd: 0b00101},
+			fields: datapath.OpFields{Imm: 0xFFFFF88B, Rs1: 0b01011, Funct3: 0b101, Rd: 0b00101},
 		},
 		{
 			name:   Lw.Name,
 			inst:   0b111111001011_11011_110_00101_0000011,
-			fields: datapath.OpFields{Imm: 0b111111001011, Rs1: 0b11011, Funct3: 0b110, Rd: 0b00101},
+			fields: datapath.OpFields{Imm: 0xFFFFFFCB, Rs1: 0b11011, Funct3: 0b110, Rd: 0b00101},
 		},
 	}
 

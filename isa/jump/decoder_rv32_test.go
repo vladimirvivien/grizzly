@@ -16,7 +16,7 @@ func TestDecode(t *testing.T) {
 		{
 			name:   Jal.Name,
 			inst:   0b00001001001100001000_00001_1101111,
-			fields: datapath.OpFields{Imm: 0b00001001001100001000, Rd: 0b00001},
+			fields: datapath.OpFields{Imm: 0b1000100010010010, Rd: 0b00001},
 		},
 		{
 			name:   Jalr.Name,

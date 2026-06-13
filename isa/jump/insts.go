@@ -7,6 +7,6 @@ import (
 var (
 	// Load instructions
 	Jal  = isa.Op{Name: "jal",  Opcode: isa.Opcodes.J}
-	Jalr = isa.Op{Name: "lbu", F3:0, Opcode: isa.Opcodes.JI}
+	Jalr = isa.Op{Name: "jalr", F3:0, Opcode: isa.Opcodes.JI}
 )
 

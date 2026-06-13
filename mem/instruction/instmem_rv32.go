@@ -62,9 +62,15 @@ func (m *InstructionMemory) Run() error {
 			}
 
 			pc := datapath.DecodePC(stream)
+			var inst datapath.XWord
+			if uint64(pc) >= uint64(m.GetSize()) {
+				inst = 0x00000013 // NOP (addi x0, x0, 0)
+			} else {
+				inst = m.Read(pc, load.Lw.F3)
+			}
 			m.outInst <- datapath.EncodeInstruction(datapath.Instruction{
 				PC:   pc,
-				Inst: m.Read(pc, load.Lw.F3),
+				Inst: inst,
 			})
 		}
 	}()

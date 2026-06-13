@@ -12,15 +12,17 @@ import (
 
 var (
 	Labels = struct {
-		InFields  datapath.Pin
-		InAluData datapath.Pin
-		InMemData datapath.Pin
-		OutAluOps datapath.Pin
+		InFields     datapath.Pin
+		InAluData    datapath.Pin
+		InMemData    datapath.Pin
+		OutAluOps    datapath.Pin
+		OutBranchOps datapath.Pin
 	}{
-		InFields:  datapath.Pin("regfile.in.opfields"),
-		InAluData: datapath.Pin("regfile.in.alu_data"),
-		InMemData: datapath.Pin("regfile.in.mem_data"),
-		OutAluOps: datapath.Pin("regfile.out.alu_ops"),
+		InFields:     datapath.Pin("regfile.in.opfields"),
+		InAluData:    datapath.Pin("regfile.in.alu_data"),
+		InMemData:    datapath.Pin("regfile.in.mem_data"),
+		OutAluOps:    datapath.Pin("regfile.out.alu_ops"),
+		OutBranchOps: datapath.Pin("regfile.out.branch_ops"),
 	}
 )
 
@@ -28,10 +30,11 @@ type writeSignal = struct{}
 type regfile = []datapath.XWord
 type RegisterFile struct {
 	*datapath.BaseComponent
-	m        sync.RWMutex
-	file     regfile
-	writeSig chan writeSignal
-	output   chan []byte
+	m         sync.RWMutex
+	file      regfile
+	writeSig  chan writeSignal
+	output    chan []byte
+	outBranch chan []byte
 }
 
 func New() *RegisterFile {
@@ -40,8 +43,10 @@ func New() *RegisterFile {
 		writeSig:      make(chan writeSignal),
 		file:          make(regfile, datapath.RegSize, datapath.RegSize),
 		output:        make(chan []byte),
+		outBranch:     make(chan []byte),
 	}
 	reg.Connect(Labels.OutAluOps, reg.output)
+	reg.Connect(Labels.OutBranchOps, reg.outBranch)
 	return reg
 }
 
@@ -127,11 +132,15 @@ func (r *RegisterFile) Run() error {
 				<-r.writeSig
 
 			case isa.Opcodes.B:
-				op.AluOp = alu.EncodeCompOp(fields.Funct3)
-				op.PC = fields.PC
-				op.AluOperand1 = r.read(fields.Rs1)
-				op.AluOperand2 = r.read(fields.Rs2)
-				r.output <- datapath.EncodeOp(op)
+				brOp := datapath.BranchOp{
+					PC:     fields.PC,
+					Opcode: fields.Opcode,
+					Funct3: fields.Funct3,
+					RS1D:   r.read(fields.Rs1),
+					RS2D:   r.read(fields.Rs2),
+					Imm:    fields.Imm,
+				}
+				r.outBranch <- datapath.EncodeBranchOp(brOp)
 			}
 		}
 	}()

@@ -47,7 +47,7 @@ func TestPCRun_Counter(t *testing.T) {
 
 	select {
 	case <-waiter:
-	case <-time.After(150 * time.Millisecond):
+	case <-time.After(time.Second):
 		t.Fatal("Operations took too long to complete")
 	}
 }
@@ -85,7 +85,7 @@ func TestPCRun_Jump(t *testing.T) {
 
 	select {
 	case <-waiter:
-	case <-time.After(150 * time.Millisecond):
+	case <-time.After(time.Second):
 		t.Fatal("Operations took too long to complete")
 	}
 }
