@@ -1,3 +1,7 @@
 .idea
 .vscode
 vendor
+bin/
+build/
+*.bin
+*.elf

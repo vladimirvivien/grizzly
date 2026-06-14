@@ -1,4 +1,4 @@
-//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+//go:build rv64 || rv64i
 
 package brancher
 
@@ -28,7 +28,7 @@ type Brancher struct {
 func New() *Brancher {
 	br := &Brancher{
 		BaseComponent: datapath.NewBase(),
-		outOperation: make(chan []byte),
+		outOperation:  make(chan []byte),
 	}
 	br.Connect(Labels.OutOperation, br.outOperation)
 	return br
@@ -43,11 +43,9 @@ func (b *Brancher) Run() error {
 		defer close(b.outOperation)
 		for stream := range input {
 			brOp := datapath.DecodeBranchOp(stream)
-			
-			// Reconstruct the actual signed offset from the decoded Imm
-			// brOp.Imm contains the 12-bit un-shifted, unsigned immediate value.
+
 			offset := brOp.Imm << 1
-			if (offset & 0x1000) != 0 { // if bit 12 is set, sign-extend
+			if (offset & 0x1000) != 0 {
 				offset |= 0xffffe000
 			}
 
@@ -55,7 +53,7 @@ func (b *Brancher) Run() error {
 				Opcode:      brOp.Opcode,
 				AluOp:       alu.Ops.Branch1,
 				AluOperand1: brOp.PC,
-				AluOperand2: 4, // default: branch not taken, PC + 4
+				AluOperand2: 4,
 			}
 
 			taken := false
@@ -75,7 +73,7 @@ func (b *Brancher) Run() error {
 			}
 
 			if taken {
-				aluOp.AluOperand2 = offset
+				aluOp.AluOperand2 = datapath.XWord(offset)
 			}
 
 			b.outOperation <- datapath.EncodeOp(aluOp)

@@ -1,4 +1,4 @@
-//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+//go:build rv64 || rv64i
 
 package core
 
@@ -47,27 +47,17 @@ func (c *Core) Run() error {
 }
 
 func (c *Core) wireAll() {
-	// inst mem <- pc
 	c.imem.Connect(instruction.Labels.InPC, c.pc.GetPin(pc.Labels.OutCounter))
-	// decoder <- dmem: instruction
 	c.dec.Connect(decoder.Labels.Instruction, c.imem.GetPin(instruction.Labels.OutInstruction))
-	// reg <- decoder: op fields
 	c.reg.Connect(reg.Labels.InFields, c.dec.GetPin(decoder.Labels.OutFields))
-
-	// Connect brancher input to reg file branch ops
 	c.brancher.Connect(brancher.Labels.InBranchOp, c.reg.GetPin(reg.Labels.OutBranchOps))
 
-	// Multiplex regfile.out.alu_ops and brancher.out.operation into alu.in.operations
 	aluOps := merge(c.reg.GetPin(reg.Labels.OutAluOps), c.brancher.GetPin(brancher.Labels.OutOperation))
 	c.alu.Connect(alu.Labels.InOperations, aluOps)
 
-	// register <- alu: register data
 	c.reg.Connect(reg.Labels.InAluData, c.alu.GetPin(alu.Labels.OutRegData))
-	// dmem <- alu: dmem op
 	c.dmem.Connect(data.Labels.InOperation, c.alu.GetPin(alu.Labels.OutMemOp))
-	// register <- dmem: register data
 	c.reg.Connect(reg.Labels.InMemData, c.dmem.GetPin(data.Labels.OutRegData))
-	// pc <- alu: PC op
 	c.pc.Connect(pc.Labels.InPcOp, c.alu.GetPin(alu.Labels.OutPcOp))
 }
 
@@ -81,7 +71,6 @@ func (c *Core) startComponents() error {
 	return nil
 }
 
-// merge combines two Bytestreams into a single multiplexed channel output
 func merge(ch1, ch2 datapath.Bytestream) datapath.Bytestream {
 	out := make(chan []byte)
 	go func() {

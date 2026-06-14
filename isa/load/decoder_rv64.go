@@ -1,24 +1,22 @@
-// +build rv64i
+//go:build rv64 || rv64i
 
 package load
 
 import (
 	"github.com/vladimirvivien/grizzly/datapath"
-	"github.com/vladimirvivien/grizzly/isa"
 )
 
-// Decode 32-bit load instruction format
-//
-// 31............20.....15...12.....07.......0
-//   imm[11:0]     RS1    fn3  RD     OPCODE
-//   000000000000__00000__xxx__00000__0000011
-//
-func Decode(i datapath.XWord) isa.Fields {
-	var fields isa.Fields
+// Decode 64-bit load instruction format
+func Decode(i datapath.XWord) datapath.OpFields {
+	var fields datapath.OpFields
 	fields.Opcode = uint8(i & 0x7F)
 	fields.Rd = uint8((i >> 7) & 0x1F)
 	fields.Funct3 = uint8((i >> 12) & 0x7)
 	fields.Rs1 = uint8((i >> 15) & 0x1F)
-	fields.Imm = (i >> 20) & 0xFFF
+	val := (i >> 20) & 0xFFF
+	if (val & 0x800) != 0 {
+		val |= 0xfffff000
+	}
+	fields.Imm = uint32(val)
 	return fields
 }

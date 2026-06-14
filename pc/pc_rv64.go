@@ -1,4 +1,4 @@
-//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+//go:build rv64 || rv64i
 
 package pc
 
@@ -21,9 +21,6 @@ var (
 	}
 )
 
-// PC represents the program counter component.
-// It is clocked and its cycle trigers downstream
-// components.
 type PC struct {
 	*datapath.BaseComponent
 	clock    *clock.Clock
@@ -49,14 +46,9 @@ func (pc *PC) Run() error {
 		return fmt.Errorf("pc: missing input: %s", Labels.InPcOp)
 	}
 
-	// Input Loop
-	// Reads the PC operation (either PC+4 or Jump/Branch instruction)
-	// If Jump > 0, set PC to jump to a specified location otherwise
-	// set PC to the next natural increment. The resolved PC is placed
-	// on a transfer channel for output.
 	go func() {
 		pc.counter = 0
-		pc.transfer <- pc.counter // trigger counter
+		pc.transfer <- pc.counter
 		log.Printf("pc: %d", pc.counter)
 
 		for stream := range opCh {
@@ -71,8 +63,6 @@ func (pc *PC) Run() error {
 		}
 	}()
 
-	// Output loop
-	// Sends out the calculated PC from transfer line
 	go func() {
 		defer close(pc.out)
 		for range pc.clock.Ticks() {

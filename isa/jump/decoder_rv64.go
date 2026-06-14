@@ -1,4 +1,4 @@
-//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+//go:build rv64 || rv64i
 
 package jump
 
@@ -7,16 +7,7 @@ import (
 	"github.com/vladimirvivien/grizzly/isa"
 )
 
-// Decode decodes 32-bit jump (jal) instruction format
-//
-// 31................12......7__......0
-//        Imm[19:0]      RD  OPCODE
-// 00000000000000000000__00000__0000000
-//
-// Jump Immediate (jalr)
-// 31........20__...15__.12__....7........0
-//     Imm       RS1    fn3  RD     OPCODE
-// 000000000010__00001__000__00101__0110011
+// Decode decodes 32-bit jump (jal/jalr) instruction format
 func Decode(i datapath.XWord) datapath.OpFields {
 	var fields datapath.OpFields
 	fields.Opcode = uint8(i & 0x7F)
@@ -32,7 +23,7 @@ func Decode(i datapath.XWord) datapath.OpFields {
 		if (offset & 0x100000) != 0 {
 			offset |= 0xffe00000
 		}
-		fields.Imm = offset
+		fields.Imm = uint32(offset)
 	case isa.Opcodes.JI:
 		fields.Rd = uint8((i >> 7) & 0x1F)
 		fields.Funct3 = uint8((i >> 12) & 0x7)
@@ -41,7 +32,7 @@ func Decode(i datapath.XWord) datapath.OpFields {
 		if (val & 0x800) != 0 {
 			val |= 0xfffff000
 		}
-		fields.Imm = val
+		fields.Imm = uint32(val)
 	}
 
 	return fields

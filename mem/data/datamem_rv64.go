@@ -1,4 +1,4 @@
-//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+//go:build rv64 || rv64i
 
 package data
 
@@ -13,8 +13,8 @@ import (
 	"github.com/vladimirvivien/grizzly/mem"
 )
 
-var(
-	Labels = struct{
+var (
+	Labels = struct {
 		InOperation datapath.Pin
 		OutRegData  datapath.Pin
 	}{
@@ -22,6 +22,7 @@ var(
 		OutRegData:  datapath.Pin("mem.out.reg_data"),
 	}
 )
+
 type DataMemory struct {
 	*datapath.BaseComponent
 	*mem.BaseMemory
@@ -36,7 +37,7 @@ func New(size uint64) *DataMemory {
 		outReg:        make(chan []byte),
 	}
 	mem.Connect(Labels.OutRegData, mem.outReg)
-	return  mem
+	return mem
 }
 
 func (m *DataMemory) Run() error {
@@ -62,7 +63,7 @@ func (m *DataMemory) Run() error {
 					Value: data,
 				})
 			case isa.Opcodes.S:
-				m.Write(op.Addr,op.Data, op.Op)
+				m.Write(op.Addr, op.Data, op.Op)
 			}
 		}
 	}()

@@ -1,4 +1,4 @@
-// +build rv64i
+//go:build rv64 || rv64i
 
 package isa
 

@@ -1,4 +1,4 @@
-//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+//go:build rv64 || rv64i
 
 package reg
 
@@ -52,7 +52,6 @@ func New() *RegisterFile {
 	return reg
 }
 
-// Run starts the register file component
 func (r *RegisterFile) Run() error {
 	input := r.GetPin(Labels.InFields)
 	if input == nil {
@@ -67,10 +66,6 @@ func (r *RegisterFile) Run() error {
 		return fmt.Errorf("register file: missing data input: %s", Labels.InMemData)
 	}
 
-	// Register instruction input loop
-	// This input loop handles operation fields from the decoder.
-	// A semaphore signal is used to wait for data_store
-	// from operations (Op.R, Op.RI, Op.L, etc) which requires it.
 	go func() {
 		defer close(r.output)
 		for stream := range input {
@@ -80,7 +75,6 @@ func (r *RegisterFile) Run() error {
 				Rd:     fields.Rd,
 			}
 
-			// Select ALU operands:
 			switch fields.Opcode {
 			case isa.Opcodes.R:
 				op.AluOp = alu.EncodeAluOp(fields.Funct7, fields.Funct3)
@@ -88,7 +82,7 @@ func (r *RegisterFile) Run() error {
 				op.AluOperand2 = r.read(fields.Rs2)
 
 				r.output <- datapath.EncodeOp(op)
-				<-r.writeSig // wait for reg data writeback
+				<-r.writeSig
 
 			case isa.Opcodes.RI:
 				op.AluOp = alu.EncodeAluOp(fields.Funct7, fields.Funct3)
@@ -97,7 +91,7 @@ func (r *RegisterFile) Run() error {
 				case integer.Slli.F3, integer.Srli.F3, integer.Srai.F3:
 					op.AluOperand2 = datapath.XWord(fields.Shift)
 				default:
-					op.AluOperand2 = fields.Imm
+					op.AluOperand2 = datapath.XWord(fields.Imm)
 				}
 
 				r.output <- datapath.EncodeOp(op)
@@ -106,14 +100,14 @@ func (r *RegisterFile) Run() error {
 			case isa.Opcodes.L:
 				op.AluOp = alu.Ops.Add
 				op.AluOperand1 = r.read(fields.Rs1)
-				op.AluOperand2 = fields.Imm
+				op.AluOperand2 = datapath.XWord(fields.Imm)
 				r.output <- datapath.EncodeOp(op)
 				<-r.writeSig
 
 			case isa.Opcodes.S:
 				op.AluOp = alu.Ops.Add
 				op.AluOperand1 = r.read(fields.Rs1)
-				op.AluOperand2 = fields.Imm
+				op.AluOperand2 = datapath.XWord(fields.Imm)
 				op.MemData = r.read(fields.Rs2)
 				r.output <- datapath.EncodeOp(op)
 
@@ -121,15 +115,15 @@ func (r *RegisterFile) Run() error {
 				op.AluOp = alu.Ops.Add
 				op.PC = fields.PC
 				op.AluOperand1 = fields.PC
-				op.AluOperand2 = fields.Imm
+				op.AluOperand2 = datapath.XWord(fields.Imm)
 				r.output <- datapath.EncodeOp(op)
 				<-r.writeSig
 
 			case isa.Opcodes.JI:
 				op.AluOp = alu.Ops.Add
 				op.PC = fields.PC
-				op.AluOperand1 =  r.read(fields.Rs1)
-				op.AluOperand2 = fields.Imm
+				op.AluOperand1 = r.read(fields.Rs1)
+				op.AluOperand2 = datapath.XWord(fields.Imm)
 				r.output <- datapath.EncodeOp(op)
 				<-r.writeSig
 
@@ -147,10 +141,6 @@ func (r *RegisterFile) Run() error {
 		}
 	}()
 
-	// ALU-to-register data store input loop
-	// Handles register data storage writebacks from ALU for R-type operations.
-	// A semaphore signal is used to ensure that the read-loop can only
-	// proceed after a previous write.
 	go func() {
 		for dataStream := range inAluData {
 			data := datapath.DecodeRegData(dataStream)
@@ -159,10 +149,6 @@ func (r *RegisterFile) Run() error {
 		}
 	}()
 
-	// Memory-to-register data store input loop
-	// Handles register data storage writebacks from Memory operations.
-	// A semaphore signal is used to ensure that the read-loop can only
-	// proceed after a previous write.
 	go func() {
 		for dataStream := range inMemData {
 			data := datapath.DecodeRegData(dataStream)
@@ -186,19 +172,15 @@ func (r *RegisterFile) write(addr uint8, data datapath.XWord) {
 	if addr == 0 {
 		return
 	}
-
 	r.m.Lock()
 	defer r.m.Unlock()
 	r.file[addr] = data
 }
 
-// Probe is a TEST-ONLY method that is used to read
-// values from register address directly.
 func (r *RegisterFile) Probe(addr uint8) datapath.XWord {
 	return r.read(addr)
 }
 
-// Sideload is TEST-ONLY method used to load values directly into reg
 func (r *RegisterFile) Sideload(addr uint8, val datapath.XWord) {
 	r.write(addr, val)
 }

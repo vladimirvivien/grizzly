@@ -1,4 +1,4 @@
-//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+//go:build rv64 || rv64i
 
 package instruction
 
@@ -12,15 +12,16 @@ import (
 	"github.com/vladimirvivien/grizzly/mem"
 )
 
-var(
-	Labels = struct{
-		InPC datapath.Pin
-		OutInstruction  datapath.Pin
+var (
+	Labels = struct {
+		InPC           datapath.Pin
+		OutInstruction datapath.Pin
 	}{
-		InPC: datapath.Pin("instmem.in.program_counter"),
-		OutInstruction:  datapath.Pin("mem.out.instruction"),
+		InPC:           datapath.Pin("instmem.in.program_counter"),
+		OutInstruction: datapath.Pin("mem.out.instruction"),
 	}
 )
+
 type InstructionMemory struct {
 	*datapath.BaseComponent
 	*mem.BaseMemory
@@ -32,14 +33,13 @@ func New(size uint64) *InstructionMemory {
 	im := &InstructionMemory{
 		BaseComponent: datapath.NewBase(),
 		BaseMemory:    mem.NewBase(size),
-		outInst:        make(chan []byte),
+		outInst:       make(chan []byte),
 	}
 	im.Connect(Labels.OutInstruction, im.outInst)
-	return  im
+	return im
 }
 
-// NewFromFile maps a file unto memory starting at 0
-func NewFromFile(path string) (*InstructionMemory, error){
+func NewFromFile(path string) (*InstructionMemory, error) {
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load: %w", err)
@@ -50,7 +50,7 @@ func NewFromFile(path string) (*InstructionMemory, error){
 }
 
 func (m *InstructionMemory) Run() error {
-	pcCh:= m.GetPin(Labels.InPC)
+	pcCh := m.GetPin(Labels.InPC)
 	if pcCh == nil {
 		return fmt.Errorf("inst memory: missing input: %s", Labels.InPC)
 	}
@@ -64,11 +64,11 @@ func (m *InstructionMemory) Run() error {
 			}
 
 			pc := datapath.DecodePC(stream)
-			var inst datapath.XWord
+			var inst uint32
 			if uint64(pc) >= uint64(m.GetSize()) {
 				inst = 0x00000013 // NOP (addi x0, x0, 0)
 			} else {
-				inst = m.Read(pc, load.Lw.F3)
+				inst = uint32(m.Read(pc, load.Lw.F3))
 			}
 			m.outInst <- datapath.EncodeInstruction(datapath.Instruction{
 				PC:   pc,

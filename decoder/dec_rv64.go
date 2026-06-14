@@ -1,4 +1,4 @@
-//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+//go:build rv64 || rv64i
 
 package decoder
 
@@ -38,14 +38,12 @@ func New() *Decoder {
 	return dec
 }
 
-// Run starts the decoder
 func (d *Decoder) Run() error {
 	instructions := d.GetPin(Labels.Instruction)
 	if instructions == nil {
 		return fmt.Errorf("decoder: input not set")
 	}
 
-	// launch main loop
 	go func() {
 		defer close(d.out)
 
@@ -56,26 +54,25 @@ func (d *Decoder) Run() error {
 			}
 
 			inst := datapath.DecodeInstruction(bits)
-			opcode := isa.GetOpcode(inst.Inst)
+			opcode := isa.GetOpcode(datapath.XWord(inst.Inst))
 
 			var fields datapath.OpFields
 			switch opcode {
 			case isa.Opcodes.R, isa.Opcodes.RI:
-				fields = integer.Decode(inst.Inst)
+				fields = integer.Decode(datapath.XWord(inst.Inst))
 			case isa.Opcodes.L:
-				fields = load.Decode(inst.Inst)
+				fields = load.Decode(datapath.XWord(inst.Inst))
 			case isa.Opcodes.S:
-				fields = store.Decode(inst.Inst)
+				fields = store.Decode(datapath.XWord(inst.Inst))
 			case isa.Opcodes.J, isa.Opcodes.JI:
-				fields = jump.Decode(inst.Inst)
+				fields = jump.Decode(datapath.XWord(inst.Inst))
 			case isa.Opcodes.B:
-				fields = branch.Decode(inst.Inst)
+				fields = branch.Decode(datapath.XWord(inst.Inst))
 			}
 
 			fields.PC = inst.PC
 			d.out <- datapath.EncodeOpFields(fields)
 		}
-
 	}()
 
 	return nil

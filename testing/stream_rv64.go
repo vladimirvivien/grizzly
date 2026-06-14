@@ -1,4 +1,4 @@
-//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+//go:build rv64 || rv64i
 
 package testing
 
@@ -22,7 +22,7 @@ func StreamFromFile(path string) (chan []byte, error) {
 	go func(f *bytes.Buffer, s chan []byte) {
 		defer close(s)
 		for {
-			buf := make([]byte, 4) // 4 for XLEN=32
+			buf := make([]byte, 8) // 8 for XLEN=64
 			n, err := f.Read(buf)
 			if err == io.EOF {
 				break
@@ -34,33 +34,33 @@ func StreamFromFile(path string) (chan []byte, error) {
 	return stream, nil
 }
 
-func LoadFile(path string)(*bytes.Buffer, error){
+func LoadFile(path string) (*bytes.Buffer, error) {
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
 		return &bytes.Buffer{}, fmt.Errorf("failed to load: %w", err)
 	}
 
-	return  bytes.NewBuffer(file), nil
+	return bytes.NewBuffer(file), nil
 }
 
 func PrintRaw(buf *bytes.Buffer) {
-	p := make([]byte, 4)
+	p := make([]byte, 8)
 	for {
 		n, err := buf.Read(p)
 		if err == io.EOF {
 			break
 		}
-		fmt.Printf("%#v\n",p[:n])
+		fmt.Printf("%#v\n", p[:n])
 	}
 }
 
 func PrintBinary(buf *bytes.Buffer) {
-	p := make([]byte, 4)
+	p := make([]byte, 8)
 	for {
 		n, err := buf.Read(p)
 		if err == io.EOF {
 			break
 		}
-		fmt.Printf("%032b\n",binary.LittleEndian.Uint32(p[:n]))
+		fmt.Printf("%064b\n", binary.LittleEndian.Uint64(p[:n]))
 	}
 }

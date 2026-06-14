@@ -1,3 +1,5 @@
+//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+
 package testing
 
 import (

@@ -1,4 +1,4 @@
-//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+//go:build rv64 || rv64i
 
 package alu
 
@@ -28,7 +28,6 @@ type ALU struct {
 	outReg chan []byte
 	outMem chan []byte
 	outPc  chan []byte
-	// internal wires
 	xfrReg chan []byte
 	xfrMem chan []byte
 	xfrPc  chan []byte
@@ -56,9 +55,6 @@ func (a *ALU) Run() error {
 		return fmt.Errorf("alu: missing input: %s", Labels.InOperations)
 	}
 
-	// Input Loop
-	// This loop processes incoming alu operations
-	// and places result on internal channels to be sent as output.
 	go func() {
 		defer close(a.xfrReg)
 		defer close(a.xfrMem)
@@ -73,7 +69,6 @@ func (a *ALU) Run() error {
 			operation := datapath.DecodeOp(stream)
 			result := aluFunc(operation)
 
-			// route alu result routing
 			switch operation.Opcode {
 			case isa.Opcodes.R, isa.Opcodes.RI:
 				a.xfrReg <- datapath.EncodeRegData(datapath.RegisterData{Rd: operation.Rd, Value: result})
@@ -88,23 +83,17 @@ func (a *ALU) Run() error {
 				})
 				a.xfrPc <- datapath.EncodePcOp(datapath.PcOp{Jump: 0, PC: 0})
 			case isa.Opcodes.J:
-				// store RD <- PC+4
 				a.xfrReg <- datapath.EncodeRegData(datapath.RegisterData{Rd: operation.Rd, Value: operation.PC + 4})
-				// set next PC = op1+op2
 				a.xfrPc <- datapath.EncodePcOp(datapath.PcOp{Jump: 1, PC: result})
 			case isa.Opcodes.JI:
-				// store RD <- PC+4
 				a.xfrReg <- datapath.EncodeRegData(datapath.RegisterData{Rd: operation.Rd, Value: operation.PC + 4})
-				// send next PC = (op1+op2) & 0xffff_fffe
-				a.xfrPc <- datapath.EncodePcOp(datapath.PcOp{Jump: 1, PC: result & 0xffff_fffe})
+				a.xfrPc <- datapath.EncodePcOp(datapath.PcOp{Jump: 1, PC: result & 0xfffffffffffffffe})
 			case isa.Opcodes.B:
 				a.xfrPc <- datapath.EncodePcOp(datapath.PcOp{Jump: 1, PC: result})
 			}
 		}
 	}()
 
-	// Reg Op Output Loop
-	// Sends out Register operations
 	go func() {
 		defer close(a.outReg)
 		for stream := range a.xfrReg {
@@ -112,8 +101,6 @@ func (a *ALU) Run() error {
 		}
 	}()
 
-	// Mem Op Output Loop
-	// Sends out Memory operations
 	go func() {
 		defer close(a.outMem)
 		for stream := range a.xfrMem {
@@ -121,8 +108,6 @@ func (a *ALU) Run() error {
 		}
 	}()
 
-	// PC Op Output Loop
-	// Sends out program counter operations
 	go func() {
 		defer close(a.outPc)
 		for stream := range a.xfrPc {
@@ -138,68 +123,34 @@ func registerExtOp(op uint8, fn func(op1, op2 datapath.XWord) datapath.XWord) {
 	extOperations[op] = fn
 }
 
-// aluFunc carries out the ALU operations
 func aluFunc(operation datapath.Operation) (result datapath.XWord) {
 	switch operation.AluOp {
-	case
-		// addition: add, addi
-		Ops.Add:
+	case Ops.Add:
 		result = operation.AluOperand1 + operation.AluOperand2
-
-	case
-		// subtraction: sub
-		Ops.Sub:
+	case Ops.Sub:
 		result = operation.AluOperand1 - operation.AluOperand2
-
-	case
-		// shift logical left: sll, slli
-		Ops.Sll:
+	case Ops.Sll:
 		result = operation.AluOperand1 << operation.AluOperand2
-
-	case
-		// set if less then (signed): slt, slti
-		Ops.Slt:
+	case Ops.Slt:
 		if datapath.SXWord(operation.AluOperand1) < datapath.SXWord(operation.AluOperand2) {
 			result = 1
 		}
-
-	case
-		// set if less then (unsigned): sltu, sltiu
-		Ops.Sltu:
+	case Ops.Sltu:
 		if operation.AluOperand1 < operation.AluOperand2 {
 			result = 1
 		}
-
-	case
-		// xor, xori
-		Ops.Xor:
+	case Ops.Xor:
 		result = operation.AluOperand1 ^ operation.AluOperand2
-
-	case
-		// shift right logical: srl, srli
-		Ops.Srl:
+	case Ops.Srl:
 		result = operation.AluOperand1 >> operation.AluOperand2
-
-	case
-		// shift right arithmetic: sra, srai
-		Ops.Sra:
+	case Ops.Sra:
 		result = datapath.XWord(datapath.SXWord(operation.AluOperand1) >> operation.AluOperand2)
-
-	case
-		// or, ori
-		Ops.Or:
+	case Ops.Or:
 		result = operation.AluOperand1 | operation.AluOperand2
-
-	case
-		// and, andi
-		Ops.And:
+	case Ops.And:
 		result = operation.AluOperand1 & operation.AluOperand2
-
 	case Ops.Branch1:
-		// if branch, result = PC + SigExt(Imm)
-		// if not branch, result = PC+4
 		result = operation.AluOperand1 + operation.AluOperand2
-
 	default:
 		if fn, exists := extOperations[operation.AluOp]; exists {
 			result = fn(operation.AluOperand1, operation.AluOperand2)
