@@ -21,7 +21,8 @@ type BaseMemory struct {
 
 func NewBase(size uint64) *BaseMemory {
 	return &BaseMemory{
-		size: size,
+		size:  size,
+		store: make([]byte, size),
 	}
 }
 

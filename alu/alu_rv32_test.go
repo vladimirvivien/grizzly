@@ -196,3 +196,64 @@ func TestALU_Run_ToMem(t *testing.T) {
 	}
 	<-pcCh // drain pc op
 }
+
+func FuzzALU(f *testing.F) {
+	f.Add(uint32(10), uint32(5), uint8(Ops.Add))
+	f.Add(uint32(10), uint32(5), uint8(Ops.Sub))
+	f.Fuzz(func(t *testing.T, op1 uint32, op2 uint32, aluOp uint8) {
+		if aluOp >= Ops.Branch1 {
+			return
+		}
+		
+		operation := datapath.Operation{
+			AluOp:       aluOp,
+			AluOperand1: datapath.XWord(op1),
+			AluOperand2: datapath.XWord(op2),
+		}
+
+		// Prevent shift amount overflows in shift operations
+		if aluOp == Ops.Sll || aluOp == Ops.Srl || aluOp == Ops.Sra {
+			operation.AluOperand2 = datapath.XWord(op2 % 32)
+		}
+
+		result := aluFunc(operation)
+
+		var expected uint32
+		switch aluOp {
+		case Ops.Add:
+			expected = op1 + op2
+		case Ops.Sub:
+			expected = op1 - op2
+		case Ops.Sll:
+			expected = op1 << (op2 % 32)
+		case Ops.Slt:
+			if int32(op1) < int32(op2) {
+				expected = 1
+			} else {
+				expected = 0
+			}
+		case Ops.Sltu:
+			if op1 < op2 {
+				expected = 1
+			} else {
+				expected = 0
+			}
+		case Ops.Xor:
+			expected = op1 ^ op2
+		case Ops.Srl:
+			expected = op1 >> (op2 % 32)
+		case Ops.Sra:
+			expected = uint32(int32(op1) >> (op2 % 32))
+		case Ops.Or:
+			expected = op1 | op2
+		case Ops.And:
+			expected = op1 & op2
+		default:
+			return
+		}
+
+		if uint32(result) != expected {
+			t.Errorf("op=%d: op1=%x, op2=%x: got %x, expected %x", aluOp, op1, op2, result, expected)
+		}
+	})
+}

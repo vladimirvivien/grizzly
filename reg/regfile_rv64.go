@@ -101,6 +101,7 @@ func (r *RegisterFile) Run() error {
 				op.AluOp = alu.Ops.Add
 				op.AluOperand1 = r.read(fields.Rs1)
 				op.AluOperand2 = datapath.XWord(fields.Imm)
+				op.MemOp = fields.Funct3
 				r.output <- datapath.EncodeOp(op)
 				<-r.writeSig
 
@@ -108,6 +109,7 @@ func (r *RegisterFile) Run() error {
 				op.AluOp = alu.Ops.Add
 				op.AluOperand1 = r.read(fields.Rs1)
 				op.AluOperand2 = datapath.XWord(fields.Imm)
+				op.MemOp = fields.Funct3
 				op.MemData = r.read(fields.Rs2)
 				r.output <- datapath.EncodeOp(op)
 

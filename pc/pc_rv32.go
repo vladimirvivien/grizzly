@@ -4,7 +4,6 @@ package pc
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/vladimirvivien/grizzly/clock"
@@ -57,7 +56,6 @@ func (pc *PC) Run() error {
 	go func() {
 		pc.counter = 0
 		pc.transfer <- pc.counter // trigger counter
-		log.Printf("pc: %d", pc.counter)
 
 		for stream := range opCh {
 			op := datapath.DecodePcOp(stream)
@@ -67,7 +65,6 @@ func (pc *PC) Run() error {
 				pc.counter = pc.counter + 4
 			}
 			pc.transfer <- pc.counter
-			log.Printf("pc: %d", pc.counter)
 		}
 	}()
 

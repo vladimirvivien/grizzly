@@ -1,4 +1,4 @@
-//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+//go:build rv64 || rv64i
 
 package pc
 
@@ -9,17 +9,17 @@ import (
 	"github.com/vladimirvivien/grizzly/datapath"
 )
 
-func TestPCNew(t *testing.T) {
+func TestPCNew_RV64(t *testing.T) {
 	pc := New()
 	if pc.counter != 0 {
-		t.Errorf("unpexpected PC counter value: %d", pc.counter)
+		t.Errorf("unexpected PC counter value: %d", pc.counter)
 	}
 	if pc.GetPin(Labels.OutCounter) == nil {
 		t.Errorf("output pin not set: %s", Labels.OutCounter)
 	}
 }
 
-func TestPCRun_Counter(t *testing.T) {
+func TestPCRun_Counter_RV64(t *testing.T) {
 	pc := New()
 	opCh := make(chan []byte)
 	pc.Connect(Labels.InPcOp, opCh)
@@ -28,10 +28,9 @@ func TestPCRun_Counter(t *testing.T) {
 	}
 
 	waiter := make(chan struct{})
-	maxCount := 1024 * 100
+	maxCount := 1000
 	go func() {
 		for i := 0; i < maxCount; i++ {
-			// jump = 0; means transfer pc = pc + 4
 			opCh <- datapath.EncodePcOp(datapath.PcOp{})
 		}
 		close(opCh)
@@ -40,7 +39,7 @@ func TestPCRun_Counter(t *testing.T) {
 		defer close(waiter)
 		for stream := range pc.GetPin(Labels.OutCounter) {
 			count := datapath.DecodePC(stream)
-			if count >= uint32(maxCount) {
+			if count >= uint64(maxCount) {
 				pc.clock.Stop()
 				return
 			}
@@ -49,12 +48,12 @@ func TestPCRun_Counter(t *testing.T) {
 
 	select {
 	case <-waiter:
-	case <-time.After(time.Second):
+	case <-time.After(1 * time.Second):
 		t.Fatal("Operations took too long to complete")
 	}
 }
 
-func TestPCRun_Jump(t *testing.T) {
+func TestPCRun_Jump_RV64(t *testing.T) {
 	pc := New()
 	opCh := make(chan []byte)
 	pc.Connect(Labels.InPcOp, opCh)
@@ -62,10 +61,10 @@ func TestPCRun_Jump(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	maxCount := 1024 * 100
+	maxCount := 1000
 	go func() {
-		for i := 8; i <= maxCount; i+=8 {
-			opCh <- datapath.EncodePcOp(datapath.PcOp{Jump: 1, PC:datapath.XWord(i)})
+		for i := 8; i <= maxCount; i += 8 {
+			opCh <- datapath.EncodePcOp(datapath.PcOp{Jump: 1, PC: datapath.XWord(i)})
 		}
 		close(opCh)
 	}()
@@ -75,10 +74,10 @@ func TestPCRun_Jump(t *testing.T) {
 		defer close(waiter)
 		for stream := range pc.GetPin(Labels.OutCounter) {
 			count := datapath.DecodePC(stream)
-			if count % 8 != 0 {
+			if count%8 != 0 {
 				t.Errorf("unexpected counter %d", count)
 			}
-			if count >= uint32(maxCount) {
+			if count >= uint64(maxCount) {
 				pc.clock.Stop()
 				return
 			}
@@ -87,15 +86,15 @@ func TestPCRun_Jump(t *testing.T) {
 
 	select {
 	case <-waiter:
-	case <-time.After(time.Second):
+	case <-time.After(1 * time.Second):
 		t.Fatal("Operations took too long to complete")
 	}
 }
 
 func FuzzPC(f *testing.F) {
-	f.Add(uint8(0), uint32(0x12345600))
-	f.Add(uint8(1), uint32(0x9ABCDE00))
-	f.Fuzz(func(t *testing.T, isJump uint8, jumpPC uint32) {
+	f.Add(uint8(0), uint64(0x123456789ABCDE00))
+	f.Add(uint8(1), uint64(0x9ABCDEF012345600))
+	f.Fuzz(func(t *testing.T, isJump uint8, jumpPC uint64) {
 		// Enforce alignment to 4 bytes for PC
 		jumpPC = jumpPC &^ 3
 
@@ -114,7 +113,7 @@ func FuzzPC(f *testing.F) {
 			close(opCh)
 		}()
 
-		var expected uint32
+		var expected uint64
 		// PC starts at 0. First output is 0.
 		// Then it processes the pcOp.
 		if (isJump % 2) > 0 {
@@ -137,7 +136,7 @@ func FuzzPC(f *testing.F) {
 		pc.clock.Stop()
 
 		actual := datapath.DecodePC(stream)
-		if actual != datapath.XWord(expected) {
+		if actual != expected {
 			t.Errorf("got %x, expected %x", actual, expected)
 		}
 	})

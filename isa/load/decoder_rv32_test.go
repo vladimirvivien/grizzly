@@ -37,8 +37,8 @@ func TestDecode(t *testing.T) {
 		},
 		{
 			name:   Lw.Name,
-			inst:   0b111111001011_11011_110_00101_0000011,
-			fields: datapath.OpFields{Imm: 0xFFFFFFCB, Rs1: 0b11011, Funct3: 0b110, Rd: 0b00101},
+			inst:   0b111111001011_11011_010_00101_0000011,
+			fields: datapath.OpFields{Imm: 0xFFFFFFCB, Rs1: 0b11011, Funct3: 0b010, Rd: 0b00101},
 		},
 	}
 

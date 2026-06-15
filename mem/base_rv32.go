@@ -21,7 +21,8 @@ type BaseMemory struct {
 
 func NewBase(size uint64) *BaseMemory {
 	return &BaseMemory{
-		size: size,
+		size:  size,
+		store: make([]byte, size),
 	}
 }
 
@@ -46,11 +47,11 @@ func (m *BaseMemory) Read(addr datapath.XWord, memOp uint8) datapath.XWord {
 
 	switch memOp {
 	case load.Lb.F3:
-		result = datapath.XWord(int32(data & 0xFF))
+		result = datapath.XWord(int32(int8(data & 0xFF)))
 	case load.Lbu.F3:
 		result = data & 0xFF
 	case load.Lh.F3:
-		result = datapath.XWord(int32(data & 0xFFFF))
+		result = datapath.XWord(int32(int16(data & 0xFFFF)))
 	case load.Lhu.F3:
 		result = data & 0xFFFF
 	case load.Lw.F3:

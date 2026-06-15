@@ -326,3 +326,43 @@ func TestRegisterFile_Run_MemDataInput(t *testing.T) {
 		}
 	}
 }
+
+func FuzzRegisterFile(f *testing.F) {
+	f.Add(uint8(5), uint32(0x12345678))
+	f.Add(uint8(0), uint32(0x9ABCDEF0))
+	f.Fuzz(func(t *testing.T, regAddr uint8, val uint32) {
+		regAddr = regAddr % 32
+
+		reg := New()
+		ch := make(chan []byte)
+		reg.Connect(Labels.InFields, make(chan []byte))
+		reg.Connect(Labels.InMemData, make(chan []byte))
+		reg.Connect(Labels.InAluData, ch)
+
+		if err := reg.Run(); err != nil {
+			t.Fatal(err)
+		}
+
+		go func() {
+			ch <- datapath.EncodeRegData(datapath.RegisterData{Rd: regAddr, Value: datapath.XWord(val)})
+			close(ch)
+		}()
+
+		select {
+		case <-reg.writeSig:
+		case <-time.After(50 * time.Millisecond):
+			t.Fatal("timed out waiting for write signal")
+		}
+
+		actual := reg.Probe(regAddr)
+		if regAddr == 0 {
+			if actual != 0 {
+				t.Errorf("x0 must always be 0, got %d", actual)
+			}
+		} else {
+			if actual != datapath.XWord(val) {
+				t.Errorf("register x%d: expected %x, got %x", regAddr, val, actual)
+			}
+		}
+	})
+}
