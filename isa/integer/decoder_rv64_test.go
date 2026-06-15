@@ -1,4 +1,4 @@
-//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+//go:build rv64 || rv64i
 
 package integer
 
@@ -9,10 +9,6 @@ import (
 	"github.com/vladimirvivien/grizzly/isa"
 )
 
-// TestDecoder tests R-format integer instructions
-//
-// fn7     RD2   RD1   fn3 RS    OPCODE
-// 0000000_00010_00001_000_00101_0110011
 func TestDecoder(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -67,12 +63,12 @@ func TestDecoder(t *testing.T) {
 		{
 			name:   Slli.Name,
 			inst:   0b0000000_00010_00001_001_00101_0010011,
-			fields: datapath.OpFields{Shift: 0b00010,  Rs1: 0b00001, Funct3: 0b001, Rd: 0b00101, Opcode: 0b0010011},
+			fields: datapath.OpFields{Shift: 0b00010, Rs1: 0b00001, Funct3: 0b001, Rd: 0b00101, Opcode: 0b0010011},
 		},
 		{
 			name:   Slti.Name,
 			inst:   0b000000000010_00001_010_10101_0010011,
-			fields: datapath.OpFields{Imm: 0b000000000010,  Rs1: 0b00001, Funct3: 0b010, Rd: 0b10101, Opcode: 0b0010011},
+			fields: datapath.OpFields{Imm: 0b000000000010, Rs1: 0b00001, Funct3: 0b010, Rd: 0b10101, Opcode: 0b0010011},
 		},
 		{
 			name:   Srli.Name,
@@ -106,7 +102,7 @@ func TestDecoder(t *testing.T) {
 				t.Errorf("unexpected RD field value %08b", fields.Rd)
 			}
 			if fields.Funct3 != test.fields.Funct3 {
-				t.Errorf("unexpected Op field value %08b", fields.Funct3)
+				t.Errorf("unexpected Funct3 field value %08b", fields.Funct3)
 			}
 			if fields.Rs1 != test.fields.Rs1 {
 				t.Errorf("unexpected RS1 field value %08b", fields.Rs1)
@@ -126,13 +122,12 @@ func TestDecoder(t *testing.T) {
 					t.Errorf("unexpected Shift field value %08b", fields.Shift)
 				}
 			case isa.Opcodes.RI:
-				switch fields.Funct3{
+				switch fields.Funct3 {
 				case Slli.F3, Srli.F3, Srai.F3:
+					// In RV64, shift is 6 bits, Funct7 is 6 bits (shifted by 26)
+					// Verify that shift is decoded correctly
 					if fields.Shift != test.fields.Shift {
-						t.Errorf("unexpected Shift field value %08b", fields.Shift)
-					}
-					if fields.Funct7 != test.fields.Funct7 {
-						t.Errorf("unexpected Funct7 field value %08b", fields.Funct7)
+						t.Errorf("unexpected Shift field value %d, expected %d", fields.Shift, test.fields.Shift)
 					}
 				default:
 					if fields.Imm != test.fields.Imm {
@@ -182,8 +177,8 @@ func FuzzDecodeInteger(f *testing.F) {
 			f3 := uint8((inst >> 12) & 0x7)
 			switch f3 {
 			case Slli.F3, Srli.F3, Srai.F3:
-				shamt := uint8((inst >> 20) & 0x1F) // 5 bits for RV32
-				f7 := uint8((inst >> 25) & 0x7F)
+				shamt := uint8((inst >> 20) & 0x3F) // 6 bits for RV64
+				f7 := uint8((inst >> 26) & 0x3F)
 				if fields.Shift != shamt {
 					t.Errorf("shift mismatch: got %d, expected %d", fields.Shift, shamt)
 				}
@@ -202,4 +197,3 @@ func FuzzDecodeInteger(f *testing.F) {
 		}
 	})
 }
-

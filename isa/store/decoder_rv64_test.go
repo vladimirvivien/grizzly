@@ -1,4 +1,4 @@
-//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+//go:build rv64 || rv64i
 
 package store
 
@@ -86,4 +86,3 @@ func FuzzDecodeStore(f *testing.F) {
 		}
 	})
 }
-

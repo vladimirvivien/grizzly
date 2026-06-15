@@ -1,4 +1,4 @@
-//go:build rv32 || rv32i || (!rv64 && !rv64i && !rv128)
+//go:build rv64 || rv64i
 
 package branch
 
@@ -18,39 +18,39 @@ func TestDecode(t *testing.T) {
 		{
 			name:   Beq.Name,
 			inst:   0b0_000100_10011_00001_000_1010_1_1100011,
-			fields: datapath.OpFields{Opcode: isa.Opcodes.B, Funct3:Beq.F3, Rs1: 0b00001, Rs2: 0b10011, Imm: 0b0_1_000100_1010},
+			fields: datapath.OpFields{Opcode: isa.Opcodes.B, Funct3: Beq.F3, Rs1: 0b00001, Rs2: 0b10011, Imm: 0b0_1_000100_1010},
 		},
 		{
 			name:   Bne.Name,
 			inst:   0b1_000100_10011_00001_001_1010_0_1100011,
-			fields: datapath.OpFields{Opcode: isa.Opcodes.B, Funct3:Bne.F3, Rs1: 0b00001, Rs2: 0b10011, Imm: 0b1_0_000100_1010},
+			fields: datapath.OpFields{Opcode: isa.Opcodes.B, Funct3: Bne.F3, Rs1: 0b00001, Rs2: 0b10011, Imm: 0b1_0_000100_1010},
 		},
 		{
 			name:   Blt.Name,
 			inst:   0b1_100100_10011_00001_100_1011_0_1100011,
-			fields: datapath.OpFields{Opcode: isa.Opcodes.B, Funct3:Blt.F3, Rs1: 0b00001, Rs2: 0b10011, Imm: 0b1_0_100100_1011},
+			fields: datapath.OpFields{Opcode: isa.Opcodes.B, Funct3: Blt.F3, Rs1: 0b00001, Rs2: 0b10011, Imm: 0b1_0_100100_1011},
 		},
 		{
 			name:   Bge.Name,
 			inst:   0b1_100100_10011_00001_101_1011_0_1100011,
-			fields: datapath.OpFields{Opcode: isa.Opcodes.B, Funct3:Bge.F3, Rs1: 0b00001, Rs2: 0b10011, Imm: 0b1_0_100100_1011},
+			fields: datapath.OpFields{Opcode: isa.Opcodes.B, Funct3: Bge.F3, Rs1: 0b00001, Rs2: 0b10011, Imm: 0b1_0_100100_1011},
 		},
 		{
 			name:   Bltu.Name,
 			inst:   0b1_111111_10011_00001_110_1011_0_1100011,
-			fields: datapath.OpFields{Opcode: isa.Opcodes.B, Funct3:Bltu.F3, Rs1: 0b00001, Rs2: 0b10011, Imm: 0b1_0_111111_1011},
+			fields: datapath.OpFields{Opcode: isa.Opcodes.B, Funct3: Bltu.F3, Rs1: 0b00001, Rs2: 0b10011, Imm: 0b1_0_111111_1011},
 		},
 		{
 			name:   Bgeu.Name,
 			inst:   0b1_111111_10011_00001_111_1011_0_1100011,
-			fields: datapath.OpFields{Opcode: isa.Opcodes.B, Funct3:Bgeu.F3, Rs1: 0b00001, Rs2: 0b10011, Imm: 0b1_0_111111_1011},
+			fields: datapath.OpFields{Opcode: isa.Opcodes.B, Funct3: Bgeu.F3, Rs1: 0b00001, Rs2: 0b10011, Imm: 0b1_0_111111_1011},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			fields := Decode(test.inst)
-			if fields.Opcode != isa.Opcodes.B{
+			if fields.Opcode != isa.Opcodes.B {
 				t.Errorf("Unexpected Opcode %05b for op %s: %#v", fields.Opcode, test.name, fields)
 			}
 			if fields.Funct3 != test.fields.Funct3 {
@@ -70,6 +70,7 @@ func TestDecode(t *testing.T) {
 }
 
 func FuzzDecodeBranch(f *testing.F) {
+	// Add seed corpus
 	f.Add(uint32(0b0_000100_10011_00001_000_1010_1_1100011))
 	f.Fuzz(func(t *testing.T, instVal uint32) {
 		inst := datapath.XWord(instVal)
@@ -90,6 +91,7 @@ func FuzzDecodeBranch(f *testing.F) {
 			t.Errorf("funct3 must be <= 7: %d", fields.Funct3)
 		}
 
+		// Reconstruction checks
 		rs1 := uint8((inst >> 15) & 0x1F)
 		rs2 := uint8((inst >> 20) & 0x1F)
 		f3 := uint8((inst >> 12) & 0x7)
@@ -109,10 +111,8 @@ func FuzzDecodeBranch(f *testing.F) {
 		if fields.Funct3 != f3 {
 			t.Errorf("funct3 mismatch: got %d, expected %d", fields.Funct3, f3)
 		}
-		if fields.Imm != expectedImm {
+		if fields.Imm != uint32(expectedImm) {
 			t.Errorf("imm mismatch: got %d, expected %d", fields.Imm, expectedImm)
 		}
 	})
 }
-
-
